@@ -1,0 +1,6 @@
+.vs/
+.stage-game/
+bin/
+obj/
+*.user
+*.suo
