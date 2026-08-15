@@ -1,5 +1,8 @@
 <Project>
+  <Import Project="Directory.Build.user.props"
+          Condition="Exists('Directory.Build.user.props')" />
   <PropertyGroup>
-    <GamePath>D:\SteamLibrary\steamapps\common\My Game Room</GamePath>
+    <!-- May also be supplied as -p:GamePath=... or BOXROOM_GAME_PATH. -->
+    <GamePath Condition="'$(GamePath)' == ''">$(BOXROOM_GAME_PATH)</GamePath>
   </PropertyGroup>
 </Project>

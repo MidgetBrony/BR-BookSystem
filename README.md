@@ -23,18 +23,25 @@ See [BOOK_FORMAT.md](BOOK_FORMAT.md) for the cache schema.
 - `BookEnhancements.cs` — held/inspect visuals, spine text, thickness, prompts,
   and the fallback reader.
 - `PageFlipReaderController.cs` — PageFlip reader integration.
+- `PageFlip/` — vendored page-curl implementation used by the reader.
 - `ComicArchive.cs` — CBZ/CBR page extraction.
 - `BookCatalogueBox.cs` — Book Box catalogue item and unplaced-book filling.
 - `BookLibrarySettings.cs` — native Settings panel and persisted library path.
 
-The PageFlip `Book.cs` and `AutoFlip.cs` sources are linked from the sibling
-`AssetLoader` repository. The `boxroomplus` AssetBundle is authored and built in
-`C:\Users\Rusty\PrefabFactory`.
+The PageFlip `Book.cs` and `AutoFlip.cs` sources are included in this repository,
+so a clone does not require the separate `AssetLoader` project. The implementation
+retains its original source attribution in `PageFlip/Book.cs`.
+
+The `boxroomplus` AssetBundle is authored and built separately in PrefabFactory;
+the compiled bundle must be supplied alongside the mod at runtime.
 
 ## Build
 
-`Directory.Build.props` defines the local BOXROOM installation through
-`GamePath`.
+Copy `Directory.Build.user.props.example` to `Directory.Build.user.props`, then
+set `GamePath` to your BOXROOM installation. The user file is Git-ignored so a
+developer's local Steam path is never committed. `GamePath` may alternatively
+be supplied through the `BOXROOM_GAME_PATH` environment variable or an MSBuild
+`-p:GamePath=...` argument.
 
 ```powershell
 dotnet build -c Release
@@ -48,9 +55,8 @@ running—use:
 dotnet build -c Release -p:DeployToGame=false
 ```
 
-The AssetBundle is separate and must be copied from
-`C:\Users\Rusty\PrefabFactory\AssetBundles\boxroomplus` to BOXROOM's `Mods`
-directory after prefab changes.
+The AssetBundle is separate and must be built by PrefabFactory and copied to
+BOXROOM's `Mods` directory after prefab changes.
 
 ## Runtime files
 

@@ -18,11 +18,6 @@
 		<PackageReference Include="SharpCompress" Version="0.50.1" />
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Include="C:\Users\Rusty\source\repos\AssetLoader\Book.cs" Link="PageFlip\Book.cs" />
-		<Compile Include="C:\Users\Rusty\source\repos\AssetLoader\AutoFlip.cs" Link="PageFlip\AutoFlip.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<Reference Include="Accessibility">
 			<HintPath>$(GamePath)/BOXROOM_Data\Managed\Accessibility.dll</HintPath>
 		</Reference>
@@ -461,6 +456,8 @@
 		<Compile Include="BookCatalogueBox.cs" />
 		<Compile Include="ComicArchive.cs" />
 		<Compile Include="BookLibrarySettings.cs" />
+		<Compile Include="PageFlip\Book.cs" />
+		<Compile Include="PageFlip\AutoFlip.cs" />
 		<Compile Include="PhysicalBooks\BookAssetBundle.cs" />
 		<Compile Include="PhysicalBooks\BookDataProvider.cs" />
 		<Compile Include="PhysicalBooks\HarmonyPatchBig.cs" />
