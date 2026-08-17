@@ -6,7 +6,7 @@ using SteamShelf.Placeables;
 using System.Threading.Tasks;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.0.11", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.0.12", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 
 namespace BR_BookSystem

@@ -68,7 +68,10 @@ namespace Boxroom_Books
                 return;
             }
 
-            foreach (string folder in Directory.GetDirectories(cacheRoot))
+            foreach (string folder in Directory.GetDirectories(
+                cacheRoot,
+                "*",
+                SearchOption.AllDirectories))
             {
                 LoadBook(folder);
             }
