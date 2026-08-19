@@ -6,7 +6,7 @@ using SteamShelf.Placeables;
 using System.Threading.Tasks;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.0.12", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.1.0", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 
 namespace BR_BookSystem
@@ -22,6 +22,7 @@ namespace BR_BookSystem
         public override void OnInitializeMelon()
         {
             if (!Boxroom_Books.BookAssetBundle.Load()) LoggerInstance.Warning("Original book asset bundle could not be loaded.");
+            BookLibrarySettings.RegisterPanel();
             SteamShelf.Placeables.PlaceableManager.PlaceableDataLoaded += BookCatalogueBox.Register;
         }
 
@@ -33,8 +34,6 @@ namespace BR_BookSystem
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            BookLibrarySettings.InstallPanels();
-
             if (BookInspectRuntime.Instance == null)
             {
                 var host = new GameObject("BR-BookInspect");

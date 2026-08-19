@@ -20,19 +20,19 @@ normal desktop reader.
 - A **Read** action in place of the normal GameBox/Album action.
 - An in-game PageFlip reader for CBZ and CBR comics.
 - PDF and EPUB launching through the operating system's default application.
-- A configurable **Book Folder Location** in BOXROOM's Settings menu.
+- A configurable **Book Folder Location** in the shared ModsPanel screen.
 
 ## Requirements
 
 - BOXROOM with MelonLoader installed.
-- The four runtime files included in the release ZIP.
+- The runtime files included in the release ZIP, including `ModsPanel.dll`.
 - An application associated with `.pdf` or `.epub` files if you want to use
   those formats.
 
 ## Installation
 
 1. Close BOXROOM.
-2. Download `BR-BookSystem-v1.0.11.zip` from the GitHub release.
+2. Download `BR-BookSystem-v1.1.0.zip` from the GitHub release.
 3. Extract the ZIP into the BOXROOM game directory.
 4. Confirm that the included files landed in `BOXROOM/Mods`.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.
@@ -44,6 +44,7 @@ The release includes:
 BOXROOM/
 └── Mods/
     ├── BR_BookSystem.dll
+    ├── ModsPanel.dll
     ├── boxroomplus
     ├── SharpCompress.dll
     └── System.Text.Encoding.CodePages.dll
@@ -56,9 +57,9 @@ claim BOXROOM media type `2`, which causes conflicting book systems.
 
 1. Create a folder anywhere on your computer for your book library.
 2. Put each book in its own subfolder.
-3. In BOXROOM, open **Settings**.
-4. Find **Book Folder Location** under Gameplay.
-5. Select the library folder and press **Apply**.
+3. In BOXROOM, open **Mods**, then select **Mod Settings**.
+4. Find the **BR-BookSystem** section.
+5. Use **Browse** beside **Book Folder Location** and select the library root.
 
 Example library:
 
@@ -78,7 +79,7 @@ My Books/
     └── Example Novel.epub
 ```
 
-The folder selected in Settings is the library root. Do not select an
+The folder selected in Mod Settings is the library root. Do not select an
 individual book folder.
 
 Press **Refresh** after adding, removing, or changing books while BOXROOM is
@@ -156,7 +157,7 @@ missing or a `BookID` changes, the saved object cannot restore its book data.
 ### No books appear
 
 - Confirm **Book Folder Location** points to the library root.
-- Press **Apply** or **Refresh** in Settings.
+- Open **Mods > Mod Settings** and press **Refresh** in the BR-BookSystem section.
 - Check that every book has `meta.json`, `cover.jpg`, and a supported book file.
 - Confirm every `BookID` is populated and unique.
 
@@ -185,9 +186,9 @@ missing assets/dependencies, failed readers, and failed BOXROOM integration.
 
 ## Building from source
 
-The repository is self-contained for code builds. The PageFlip sources used by
-the reader are included under `PageFlip/`; the separate historical
-`AssetLoader` project is not required.
+The PageFlip sources used by the reader are included under `PageFlip/`; the
+separate historical `AssetLoader` project is not required. BR-BookSystem v1.1.0
+also references the sibling `ModsPanel` project, which must be built first.
 
 ### Configure the BOXROOM path
 
@@ -235,7 +236,7 @@ hierarchies, models, anchors, materials, or the PageFlip UI require an updated
 
 - `Core.cs` — MelonLoader startup, media registration, and saved-placeable
   routing.
-- `BookLibrarySettings.cs` — native Settings panel and persisted library path.
+- `BookLibrarySettings.cs` — ModsPanel registration and persisted library path.
 - `BookCatalogueBox.cs` — catalogue registration and the source Book Box.
 - `PhysicalBooks/Media/` — metadata model, library scanning, and BOXROOM media
   routing.

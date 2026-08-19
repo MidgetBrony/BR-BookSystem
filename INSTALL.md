@@ -6,13 +6,14 @@
    directory. Allow Windows to merge the folder.
 4. Remove or disable the old `Boxroom_Books.dll` if it is present. Both mods use
    media type `2` and cannot be enabled together.
-5. Start BOXROOM and open **Settings**.
-6. Under Gameplay, choose **Book Folder Location**, select the folder containing
-   your individual book folders, and press **Apply**.
+5. Start BOXROOM and open **Mods**, then **Mod Settings**.
+6. In the **BR-BookSystem** section, use **Browse** beside **Book Folder
+   Location** and select the folder containing your individual book folders.
 
 The release installs these files into `BOXROOM/Mods`:
 
 - `BR_BookSystem.dll`
+- `ModsPanel.dll`
 - `boxroomplus`
 - `SharpCompress.dll`
 - `System.Text.Encoding.CodePages.dll`

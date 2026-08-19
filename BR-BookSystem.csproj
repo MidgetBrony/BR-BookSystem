@@ -6,8 +6,8 @@
 		<RootNamespace>BR_BookSystem</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<PlatformTarget>x64</PlatformTarget>
-		<AssemblyVersion>1.0.11.0</AssemblyVersion>
-		<FileVersion>1.0.11.0</FileVersion>
+		<AssemblyVersion>1.1.0.0</AssemblyVersion>
+		<FileVersion>1.1.0.0</FileVersion>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<AssemblyName>BR_BookSystem</AssemblyName>
 		<LangVersion>latest</LangVersion>
@@ -16,6 +16,12 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="SharpCompress" Version="0.50.1" />
+	</ItemGroup>
+	<ItemGroup>
+		<Reference Include="ModsPanel">
+			<HintPath>..\ModsPanel\bin\Release\netstandard2.1\ModsPanel.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
 	</ItemGroup>
 	<ItemGroup>
 		<Reference Include="Accessibility">
