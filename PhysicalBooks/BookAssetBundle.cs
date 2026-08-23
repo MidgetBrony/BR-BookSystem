@@ -21,6 +21,7 @@ namespace Boxroom_Books
         private const string DisplayPrefabName = "BookBox";
 
         private static AssetBundle bundle;
+        private static bool ownsBundle;
         private static GameObject bookPrefab;
         private static GameObject bookDisplayPrefab;
 
@@ -33,17 +34,20 @@ namespace Boxroom_Books
 
         public static GameObject BookPrefab => bookPrefab;
         public static GameObject BookDisplayPrefab => bookDisplayPrefab;
+        /// <summary>Allows BR-MediaAPI to reuse this bundle when Books initialized first.</summary>
+        public static AssetBundle SharedBundle => bundle;
 
         public static bool Load()
         {
             if (IsLoaded)
                 return true;
 
-            string bundlePath = Path.Combine(
-                MelonEnvironment.ModsDirectory,
-                BundleFileName);
+            bundle = TryGetSharedMediaApiBundle();
+            ownsBundle = false;
 
-            if (!File.Exists(bundlePath))
+            string bundlePath = Path.Combine(MelonEnvironment.ModsDirectory, BundleFileName);
+
+            if (bundle == null && !File.Exists(bundlePath))
             {
                 MelonLogger.Error(
                     $"Book AssetBundle was not found: '{bundlePath}'");
@@ -53,7 +57,11 @@ namespace Boxroom_Books
 
             try
             {
-                bundle = AssetBundle.LoadFromFile(bundlePath);
+                if (bundle == null)
+                {
+                    bundle = AssetBundle.LoadFromFile(bundlePath);
+                    ownsBundle = bundle != null;
+                }
 
                 if (bundle == null)
                 {
@@ -92,6 +100,22 @@ namespace Boxroom_Books
 
                 Unload();
                 return false;
+            }
+        }
+
+        private static AssetBundle TryGetSharedMediaApiBundle()
+        {
+            try
+            {
+                Type sharedType = Type.GetType(
+                    "BR_MediaAPI.SharedMediaCasePrefabs, BR_MediaAPI",
+                    throwOnError: false);
+                return sharedType?.GetProperty("SharedBundle")?.GetValue(null) as AssetBundle;
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Warning($"Could not query BR-MediaAPI's shared bundle: {ex.Message}");
+                return null;
             }
         }
         private static bool ConfigurePlaceable(GameObject instance)
@@ -252,12 +276,13 @@ namespace Boxroom_Books
             bookPrefab = null;
             bookDisplayPrefab = null;
 
-            if (bundle != null)
+            if (bundle != null && ownsBundle)
             {
                 // false keeps instantiated assets alive.
                 bundle.Unload(false);
-                bundle = null;
             }
+            bundle = null;
+            ownsBundle = false;
         }
 
         private static GameObject FindPrefab(

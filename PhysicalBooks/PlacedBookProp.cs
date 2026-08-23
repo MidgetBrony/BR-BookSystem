@@ -5,6 +5,7 @@ using SteamShelf.PlayerTools;
 using SteamShelf.Save;
 using System;
 using UnityEngine;
+using BR_MediaAPI;
 
 namespace Boxroom_Books
 {
@@ -14,7 +15,7 @@ namespace Boxroom_Books
     /// and cover bytes in RoomState. It also maintains BOXROOM's media reservation so
     /// a saved loose copy is not simultaneously offered by a shelf or Book Box.
     /// </summary>
-    public class PlacedBookProp : MonoBehaviour, IPlaceable
+    public class PlacedBookProp : MonoBehaviour, IPlaceable, ICustomMediaProp
     {
         [SerializeField]
         private string bookId = "";
@@ -45,6 +46,12 @@ namespace Boxroom_Books
                     ? dataProvider.Data
                     : null;
             }
+        }
+        public IMediaItem MediaItem => BookData;
+
+        public void ApplyMedia(IMediaItem item)
+        {
+            if (item is BookData book) ApplyData(book);
         }
         private bool RestoreBookDataIfNeeded()
         {

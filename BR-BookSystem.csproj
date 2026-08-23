@@ -18,8 +18,8 @@
 		<PackageReference Include="SharpCompress" Version="0.50.1" />
 	</ItemGroup>
 	<ItemGroup>
-		<Reference Include="ModsPanel">
-			<HintPath>..\ModsPanel\bin\Release\netstandard2.1\ModsPanel.dll</HintPath>
+		<Reference Include="BR_MediaAPI">
+			<HintPath>..\BR-MediaAPI\bin\Release\netstandard2.1\BR_MediaAPI.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
@@ -459,14 +459,12 @@
 		<Compile Include="Core.cs" />
 		<Compile Include="BookEnhancements.cs" />
 		<Compile Include="PageFlipReaderController.cs" />
-		<Compile Include="BookCatalogueBox.cs" />
 		<Compile Include="ComicArchive.cs" />
 		<Compile Include="BookLibrarySettings.cs" />
 		<Compile Include="PageFlip\Book.cs" />
 		<Compile Include="PageFlip\AutoFlip.cs" />
 		<Compile Include="PhysicalBooks\BookAssetBundle.cs" />
 		<Compile Include="PhysicalBooks\BookDataProvider.cs" />
-		<Compile Include="PhysicalBooks\HarmonyPatchBig.cs" />
 		<Compile Include="PhysicalBooks\Media\BookData.cs" />
 		<Compile Include="PhysicalBooks\Media\BookLibrarySystem.cs" />
 		<Compile Include="PhysicalBooks\Media\BookMediaLibrary.cs" />

@@ -18,6 +18,11 @@ using TMPro;
 
 namespace BR_BookSystem
 {
+    internal static class BookSdkIntegration
+    {
+        internal static bool UsesApiLifecycle => BR_MediaAPI.MediaApi.TryGet(Boxroom_Books.BookMedia.Type, out BR_MediaAPI.MediaTypeDefinition definition) && definition.UseGenericInteractionLifecycle;
+    }
+
     /// <summary>
     /// Controls the bottom-right held-book model independently of the placement ghost.
     /// BOXROOM normally creates this presentation only for its built-in media types,
@@ -490,6 +495,7 @@ namespace BR_BookSystem
     {
         private static bool Prefix(PlayerInteractionTool __instance, SteamShelf.Media.IMediaItem item)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return true;
             if (item is not BookData book) return true;
 
             GameObject looseBook = BookAssetBundle.InstantiatePrefab();
@@ -528,6 +534,7 @@ namespace BR_BookSystem
     {
         private static void Postfix(PlayerInteractionTool __instance, PlacementTag placeable)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return;
             if (placeable != null && placeable.TryGetComponent(out PlacedBookProp prop) && prop.BookData != null)
                 BookHandVisual.Show(__instance, prop.BookData);
         }
@@ -540,6 +547,7 @@ namespace BR_BookSystem
         private static readonly System.Reflection.FieldInfo HeldMedia = AccessTools.Field(typeof(PlayerInteractionTool), "currentHeldMediaItem");
         private static void Postfix(PlayerInteractionTool __instance)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return;
             if (HeldMedia.GetValue(__instance) is BookData book) BookHandVisual.Show(__instance, book);
         }
     }
@@ -548,7 +556,7 @@ namespace BR_BookSystem
     [HarmonyPatch(typeof(PlayerInteractionTool), nameof(PlayerInteractionTool.OnToolDeactivated))]
     internal static class HideBookHandVisualPatch
     {
-        private static void Postfix() => BookHandVisual.Hide();
+        private static void Postfix() { if (!BookSdkIntegration.UsesApiLifecycle) BookHandVisual.Hide(); }
     }
 
     /// <summary>Clears the custom visual alongside BOXROOM's held-media state.</summary>
@@ -557,6 +565,7 @@ namespace BR_BookSystem
     {
         private static void Postfix(PlayerInteractionTool __instance)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return;
             BookHandVisual.Clear();
             BookReadHintPatch.Clear(__instance);
         }
@@ -568,6 +577,7 @@ namespace BR_BookSystem
     {
         private static void Postfix(BoxInspector __instance, SteamShelf.Media.IMediaItem item)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return;
             if (item is BookData book)
                 BookInspectorVisual.Show(__instance, book);
             else
@@ -579,7 +589,7 @@ namespace BR_BookSystem
     [HarmonyPatch(typeof(BoxInspector), nameof(BoxInspector.OnToolDeactivated))]
     internal static class HideBookInspectorVisualPatch
     {
-        private static void Postfix() => BookInspectorVisual.Hide();
+        private static void Postfix() { if (!BookSdkIntegration.UsesApiLifecycle) BookInspectorVisual.Hide(); }
     }
 
     /// <summary>Positions and sizes the book model after the stock inspector activates.</summary>
@@ -588,6 +598,7 @@ namespace BR_BookSystem
     {
         private static void Postfix(BoxInspector __instance)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return;
             // Run after BOXROOM's ViewInternal has finished configuring and
             // positioning BoxHolder. SetHeldMedia happens too early and its
             // result is overwritten by the remainder of OnToolActivated.
@@ -609,6 +620,7 @@ namespace BR_BookSystem
     {
         private static bool Prefix(BoxInspector __instance, SteamShelf.Input.PlayerInputContext inputContext)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return true;
             if (__instance.heldMediaInfo is not BookData book) return true;
             if (BookInspectRuntime.Instance != null && BookInspectRuntime.Instance.IsOpen) return false;
             if (inputContext.PrimaryPressedThisFrame)
@@ -780,6 +792,7 @@ namespace BR_BookSystem
         {
             PlayerInteractionTool tool = UnityEngine.Object.FindFirstObjectByType<PlayerInteractionTool>();
             if (tool?.CurrentHeldMediaItem is not BookData book) return true;
+            if (BookSdkIntegration.UsesApiLifecycle) return true;
             BookInspectRuntime.Instance?.Open(book);
             return false;
         }
@@ -793,6 +806,7 @@ namespace BR_BookSystem
         {
             PlayerInteractionTool tool = UnityEngine.Object.FindFirstObjectByType<PlayerInteractionTool>();
             if (tool?.CurrentHeldMediaItem is not BookData book) return true;
+            if (BookSdkIntegration.UsesApiLifecycle) return true;
             BookInspectRuntime.Instance?.Open(book);
             return false;
         }
@@ -808,6 +822,7 @@ namespace BR_BookSystem
 
         private static void Postfix(PlayerInteractionTool __instance)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return;
             if (HeldMedia.GetValue(__instance) is BookData)
             {
                 if (!BookInspectorVisual.IsVisible && !(BookInspectRuntime.Instance?.IsOpen ?? false))
@@ -856,6 +871,7 @@ namespace BR_BookSystem
 
         private static bool Prefix(PlayerInteractionTool __instance, SteamShelf.Input.PlayerInputContext inputContext)
         {
+            if (BookSdkIntegration.UsesApiLifecycle) return true;
             if (BookInspectRuntime.Instance != null && BookInspectRuntime.Instance.IsOpen) return false;
             if (inputContext.SecondaryPressedThisFrame && HeldMedia.GetValue(__instance) is BookData book)
             {

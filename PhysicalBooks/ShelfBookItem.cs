@@ -398,6 +398,8 @@ namespace Boxroom_Books
             Transform parent,
             ref IShelfItem __result)
         {
+            if (BR_BookSystem.BookSdkIntegration.UsesApiLifecycle)
+                return true;
             if (type != BookMedia.Type)
                 return true;
 
@@ -427,6 +429,8 @@ namespace Boxroom_Books
             eMediaType type,
             ref bool __result)
         {
+            if (BR_BookSystem.BookSdkIntegration.UsesApiLifecycle)
+                return true;
             if (type != BookMedia.Type)
                 return true;
 
