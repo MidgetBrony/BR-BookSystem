@@ -410,15 +410,41 @@ namespace BR_BookSystem
         {
             book = currentBook;
             screenPosition = default;
-            if (book == null || visual == null || !visual.activeInHierarchy) return false;
+            bool mirrorApiPrompt = false;
+
+            GameObject promptVisual = visual;
+            if (book == null || promptVisual == null || !promptVisual.activeInHierarchy)
+            {
+                // BR-MediaAPI owns the inspection model when its generic lifecycle
+                // is active, so the legacy BookInspectorVisual fields are empty.
+                // Resolve the same book and action anchor from BOXROOM's active
+                // inspector instead of dropping the visible Read prompt.
+                BoxInspector inspector = UnityEngine.Object.FindFirstObjectByType<BoxInspector>();
+                book = inspector?.heldMediaInfo as BookData;
+                if (!BookInspectMenuPatch.IsBookInspectActive || book == null || inspector?.BoxHolder == null || !inspector.gameObject.activeInHierarchy)
+                    return false;
+                promptVisual = inspector.BoxHolder.gameObject;
+                mirrorApiPrompt = true;
+            }
 
             Camera camera = Camera.main;
-            InspectUIAnchors anchors = visual.GetComponentInChildren<InspectUIAnchors>(true);
+            InspectUIAnchors anchors = promptVisual.GetComponentInChildren<InspectUIAnchors>(true);
             Transform target = anchors?.Open;
             if (camera == null || target == null) return false;
 
             Vector3 point = camera.WorldToScreenPoint(target.position);
             if (point.z <= 0f) return false;
+            if (mirrorApiPrompt)
+            {
+                Renderer[] renderers = promptVisual.GetComponentsInChildren<Renderer>(false);
+                if (renderers.Length > 0)
+                {
+                    Bounds bounds = renderers[0].bounds;
+                    for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+                    Vector3 center = camera.WorldToScreenPoint(bounds.center);
+                    if (center.z > 0f) point.x = center.x * 2f - point.x;
+                }
+            }
             screenPosition = new Vector2(point.x, Screen.height - point.y);
             return true;
         }
@@ -620,12 +646,11 @@ namespace BR_BookSystem
     {
         private static bool Prefix(BoxInspector __instance, SteamShelf.Input.PlayerInputContext inputContext)
         {
-            if (BookSdkIntegration.UsesApiLifecycle) return true;
             if (__instance.heldMediaInfo is not BookData book) return true;
             if (BookInspectRuntime.Instance != null && BookInspectRuntime.Instance.IsOpen) return false;
             if (inputContext.PrimaryPressedThisFrame)
             {
-                BookInspectRuntime.Instance?.Open(book);
+                BR_BookSystem.Core.OpenBook(book);
                 return false;
             }
             return true;
@@ -639,6 +664,7 @@ namespace BR_BookSystem
     [HarmonyPatch(typeof(Menu_Inspect), "OnPreShow")]
     internal static class BookInspectMenuPatch
     {
+        internal static bool IsBookInspectActive { get; private set; }
         private static readonly System.Reflection.FieldInfo GameText = AccessTools.Field(typeof(Menu_Inspect), "m_GameText");
         private static readonly System.Reflection.FieldInfo LaunchButton = AccessTools.Field(typeof(Menu_Inspect), "m_LaunchGameButton");
         private static readonly System.Reflection.FieldInfo PostcardsButton = AccessTools.Field(typeof(Menu_Inspect), "m_ViewPostcardsButton");
@@ -677,6 +703,7 @@ namespace BR_BookSystem
 
         private static void ApplyBookMenu(Menu_Inspect menu, BookData book)
         {
+            IsBookInspectActive = true;
             // Book inspection has one stable panel: metadata + Read. Reset it
             // every time because Menu_Inspect retains its previous box state.
             if (OpenPanel.GetValue(menu) is GameObject openPanel) openPanel.SetActive(true);
@@ -748,6 +775,7 @@ namespace BR_BookSystem
 
         internal static void RestoreStockMenu()
         {
+            IsBookInspectActive = false;
             foreach (var pair in OriginalTmpLabels)
                 if (pair.Key != null) pair.Key.text = pair.Value;
             foreach (var pair in OriginalLegacyLabels)

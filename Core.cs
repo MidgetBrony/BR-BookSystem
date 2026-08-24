@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.2.0", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.2.2", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 
@@ -47,7 +47,7 @@ namespace BR_BookSystem
                 {
                     PrimaryActionLabel = "Read",
                     PrefabFactory = _ => Boxroom_Books.BookAssetBundle.InstantiateDisplayPrefab(),
-                    OnPrimaryAction = context => BookInspectRuntime.Instance?.Open((Boxroom_Books.BookData)context.Item)
+                    OnPrimaryAction = context => OpenBook((Boxroom_Books.BookData)context.Item)
                 },
                 LibraryFolder = new MediaLibraryFolderOptions
                 {
@@ -68,13 +68,28 @@ namespace BR_BookSystem
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            if (BookInspectRuntime.Instance == null)
-            {
-                var host = new GameObject("BR-BookInspect");
-                UnityEngine.Object.DontDestroyOnLoad(host);
-                host.AddComponent<BookInspectRuntime>();
-            }
+            EnsureInspectRuntime();
         }
 
+        internal static void OpenBook(Boxroom_Books.BookData book)
+        {
+            BookInspectRuntime runtime = EnsureInspectRuntime();
+            if (runtime == null)
+            {
+                MelonLogger.Error("Could not create the Books reader runtime.");
+                return;
+            }
+
+            runtime.Open(book);
+        }
+
+        internal static BookInspectRuntime EnsureInspectRuntime()
+        {
+            if (BookInspectRuntime.Instance != null) return BookInspectRuntime.Instance;
+
+            var host = new GameObject("BR-BookInspect");
+            UnityEngine.Object.DontDestroyOnLoad(host);
+            return host.AddComponent<BookInspectRuntime>();
+        }
     }
 }
