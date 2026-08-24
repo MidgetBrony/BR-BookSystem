@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "br-booksystem",
+  "name": "BR-BookSystem",
+  "author": "Rusty",
+  "description": "Physical books and comics that can be collected, shelved, inspected, and read in BOXROOM.",
+  "repository": "https://github.com/MidgetBrony/BR-BookSystem",
+  "requirements": { "melonLoader": "0.7.0" },
+  "dependencies": [
+    {
+      "manifest": "https://raw.githubusercontent.com/MidgetBrony/BR-MediaAPI/refs/heads/main/manifest.json",
+      "minimumVersion": "1.0.0",
+      "required": true
+    }
+  ],
+  "release": {
+    "provider": "github",
+    "asset": "BR-BookSystem.zip"
+  }
+}
