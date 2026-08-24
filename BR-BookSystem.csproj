@@ -476,7 +476,7 @@
 	
 	<Target Name="DeployMod" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true'">
 		<MakeDir Directories="$(GamePath)\Mods" />
-		<Copy SourceFiles="$(TargetPath);$(TargetDir)SharpCompress.dll;$(TargetDir)System.Text.Encoding.CodePages.dll"
+		<Copy SourceFiles="$(TargetPath);$(TargetDir)SharpCompress.dll;$(TargetDir)System.Text.Encoding.CodePages.dll;$(MSBuildProjectDirectory)\UnityAssets\boxroomplus"
 		      DestinationFolder="$(GamePath)\Mods"
 		      SkipUnchangedFiles="true" />
 	</Target>
