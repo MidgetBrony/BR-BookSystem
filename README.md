@@ -228,6 +228,11 @@ The `boxroomplus` AssetBundle contains the Book Box and the loose, shelf,
 inspection, and reader prefabs. It is authored separately in PrefabFactory and
 must be copied into `BOXROOM/Mods` after prefab changes.
 
+The editable Unity handoff and the matching compiled Windows bundle are checked
+in under `UnityAssets/`. Import `UnityAssets/BR-BookSystem-UnityAssets.unitypackage`
+when changing the prefabs or integrating the feature into BOXROOM source; see
+`UnityAssets/README.md` for the exact Unity version and rebuild procedure.
+
 The C# project can compile without rebuilding the bundle, but changes to prefab
 hierarchies, models, anchors, materials, or the PageFlip UI require an updated
 `boxroomplus` file.

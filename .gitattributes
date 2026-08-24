@@ -61,3 +61,7 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# BR-BookSystem Unity handoff and compiled runtime bundle.
+*.unitypackage binary
+UnityAssets/boxroomplus binary
