@@ -36,3 +36,5 @@
   ModsPanel, and the `boxroomplus` AssetBundle in the release archive.
 - Places third-party notices under `Mods` so the complete archive remains within
   BoxMate's guarded installation roots.
+- Uses the versioned `BR-BookSystem-1.6.2.zip` asset name so BoxMate cannot
+  receive an older stable-name archive from an intermediary cache.

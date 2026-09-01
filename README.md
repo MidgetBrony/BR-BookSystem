@@ -38,7 +38,7 @@ those two required mods separately.
 ## Installation
 
 1. Close BOXROOM.
-2. Download `BR-BookSystem.zip` from the latest GitHub release.
+2. Download `BR-BookSystem-1.6.2.zip` from the latest GitHub release.
 3. Extract the ZIP into the BOXROOM game directory.
 4. Confirm that the included files landed in `BOXROOM/Mods`.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.

@@ -20,7 +20,7 @@
   ],
   "release": {
     "provider": "github",
-    "asset": "BR-BookSystem.zip",
+    "asset": "BR-BookSystem-1.6.2.zip",
     "checksumAsset": "SHA256SUMS.txt"
   }
 }
