@@ -21,6 +21,7 @@ The release installs these files into `BOXROOM/Mods`:
 - `boxroomplus`
 - `SharpCompress.dll`
 - `System.Text.Encoding.CodePages.dll`
+- `BR-BookSystem-THIRD-PARTY-NOTICES.md`
 
 The release also installs `pdfium.dll` into
 `BOXROOM/BOXROOM_Data/Plugins/x86_64` for in-game PDF rendering.

@@ -25,7 +25,7 @@ files = {
     root.parent / "ModsPanel/bin/Release/netstandard2.1/ModsPanel.dll": "Mods/ModsPanel.dll",
     root / "UnityAssets/boxroomplus": "Mods/boxroomplus",
     pdfium: "BOXROOM_Data/Plugins/x86_64/pdfium.dll",
-    root / "THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+    root / "THIRD_PARTY_NOTICES.md": "Mods/BR-BookSystem-THIRD-PARTY-NOTICES.md",
 }
 
 missing = [str(path) for path in files if not path.is_file()]

@@ -34,3 +34,5 @@
 - Requires BR-MediaAPI 1.0.1+ and ModsPanel 2.5.0+ through the BoxMate manifest.
 - Includes PDFtoImage, PDFium, VersOne.Epub, SharpCompress, encoding support,
   ModsPanel, and the `boxroomplus` AssetBundle in the release archive.
+- Places third-party notices under `Mods` so the complete archive remains within
+  BoxMate's guarded installation roots.

@@ -55,7 +55,8 @@ BOXROOM/
 │   ├── ModsPanel.dll
 │   ├── boxroomplus
 │   ├── SharpCompress.dll
-│   └── System.Text.Encoding.CodePages.dll
+│   ├── System.Text.Encoding.CodePages.dll
+│   └── BR-BookSystem-THIRD-PARTY-NOTICES.md
 └── BOXROOM_Data/
     └── Plugins/
         └── x86_64/
