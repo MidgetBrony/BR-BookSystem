@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.2.2", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.6.2", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 
@@ -18,6 +18,7 @@ namespace BR_BookSystem
     {
         public override void OnInitializeMelon()
         {
+            ReadingProgress.Initialize();
             if (!Boxroom_Books.BookAssetBundle.Load()) LoggerInstance.Warning("Original book asset bundle could not be loaded.");
             MediaApi.Register(new MediaTypeDefinition
             {
@@ -59,6 +60,7 @@ namespace BR_BookSystem
                     GetStatus = () => $"{Boxroom_Books.BookLibrarySystem.GetKnownBooks().Count} books found"
                 }
             });
+            EpubReaderSettings.Initialize();
         }
 
         public override void OnDeinitializeMelon()

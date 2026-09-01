@@ -111,28 +111,37 @@ namespace BR_BookSystem
         private sealed class Baseline
         {
             internal Vector3 BodyScale;
+            internal Vector3 CoverScale;
             internal Vector3 CoverPosition;
+            internal Vector3 BackScale;
             internal Vector3 BackPosition;
             internal Vector3 SpineScale;
             internal Vector3 SpinePosition;
+            internal Vector3 ColliderSize;
+            internal Vector3 ColliderCenter;
         }
 
         private static readonly Dictionary<int, Baseline> Baselines = new();
+        private const float DefaultCoverAspect = 0.1248f / 0.1782f;
 
         internal static void Apply(GameObject visual, BookData book)
         {
             if (visual == null || book == null) return;
-            ApplyThickness(visual, book);
             Transform cover = Find(visual.transform, "Cover");
             Renderer renderer = cover != null ? cover.GetComponent<Renderer>() : null;
+            float coverAspect = DefaultCoverAspect;
             if (renderer != null && book.CoverArtBytes != null)
             {
                 Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, true);
                 if (ImageConversion.LoadImage(texture, book.CoverArtBytes))
+                {
+                    if (texture.height > 0) coverAspect = (float)texture.width / texture.height;
                     ApplyTexture(renderer, texture);
+                }
                 else
                     UnityEngine.Object.Destroy(texture);
             }
+            ApplyShape(visual, book, coverAspect);
             RuntimeBookSpine.Apply(visual, book);
         }
 
@@ -155,7 +164,10 @@ namespace BR_BookSystem
             renderer.material = material;
         }
 
-        internal static void ApplyThickness(GameObject visual, BookData book)
+        internal static void ApplyThickness(GameObject visual, BookData book) =>
+            ApplyShape(visual, book, DefaultCoverAspect);
+
+        private static void ApplyShape(GameObject visual, BookData book, float coverAspect)
         {
             if (visual == null || book == null) return;
             Transform body = Find(visual.transform, "Body");
@@ -163,6 +175,7 @@ namespace BR_BookSystem
             Transform back = Find(visual.transform, "Back");
             Transform spine = Find(visual.transform, "Spine");
             if (body == null) return;
+            BoxCollider collider = visual.GetComponent<BoxCollider>();
 
             int id = visual.GetInstanceID();
             if (!Baselines.TryGetValue(id, out Baseline baseline))
@@ -170,26 +183,47 @@ namespace BR_BookSystem
                 baseline = new Baseline
                 {
                     BodyScale = body.localScale,
+                    CoverScale = cover != null ? cover.localScale : Vector3.one,
                     CoverPosition = cover != null ? cover.localPosition : Vector3.zero,
+                    BackScale = back != null ? back.localScale : Vector3.one,
                     BackPosition = back != null ? back.localPosition : Vector3.zero,
                     SpineScale = spine != null ? spine.localScale : Vector3.one,
-                    SpinePosition = spine != null ? spine.localPosition : Vector3.zero
+                    SpinePosition = spine != null ? spine.localPosition : Vector3.zero,
+                    ColliderSize = collider != null ? collider.size : Vector3.zero,
+                    ColliderCenter = collider != null ? collider.center : Vector3.zero
                 };
                 Baselines[id] = baseline;
             }
 
             float thickness = ThicknessFor(book.BookType);
+            float widthScale = Mathf.Clamp(coverAspect / DefaultCoverAspect, 0.65f, 3.0f);
             Vector3 scale = baseline.BodyScale;
+            scale.x *= widthScale;
             scale.z *= thickness;
             body.localScale = scale;
+            if (cover != null)
+            {
+                Vector3 coverScale = baseline.CoverScale;
+                coverScale.x *= widthScale;
+                cover.localScale = coverScale;
+            }
             if (cover != null) cover.localPosition = new Vector3(baseline.CoverPosition.x, baseline.CoverPosition.y, baseline.CoverPosition.z * thickness);
+            if (back != null)
+            {
+                Vector3 backScale = baseline.BackScale;
+                backScale.x *= widthScale;
+                back.localScale = backScale;
+            }
             if (back != null) back.localPosition = new Vector3(baseline.BackPosition.x, baseline.BackPosition.y, baseline.BackPosition.z * thickness);
             if (spine != null)
             {
                 Vector3 spineScale = baseline.SpineScale;
                 spineScale.z *= thickness;
                 spine.localScale = spineScale;
-                spine.localPosition = baseline.SpinePosition;
+                spine.localPosition = new Vector3(
+                    baseline.SpinePosition.x * widthScale,
+                    baseline.SpinePosition.y,
+                    baseline.SpinePosition.z);
             }
 
             // A thin comic must shrink downward toward the supporting surface,
@@ -206,13 +240,16 @@ namespace BR_BookSystem
                 if (visuals != null)
                     visuals.localPosition = new Vector3(0.00186443f, anchoredCenter, -0.00131416f);
 
-                BoxCollider collider = visual.GetComponent<BoxCollider>();
                 if (collider != null)
                 {
-                    Vector3 size = collider.size;
+                    Vector3 size = baseline.ColliderSize;
+                    size.x *= widthScale;
                     size.y = placedThickness;
                     collider.size = size;
-                    collider.center = new Vector3(0.00186443f, anchoredCenter, -0.00131416f);
+                    collider.center = new Vector3(
+                        baseline.ColliderCenter.x,
+                        anchoredCenter,
+                        baseline.ColliderCenter.z);
                 }
             }
 
@@ -279,7 +316,13 @@ namespace BR_BookSystem
 
             RectTransform rect = label.rectTransform;
             float thickness = 0.0328f * ThicknessScale(book.BookType);
-            rect.localPosition = new Vector3(-0.0638f, 0f, 0f);
+            // The label is a sibling of Spine, so follow the reshaped spine's
+            // actual position instead of the original portrait-only X value.
+            // Move it just beyond the outside face to avoid z-fighting.
+            rect.localPosition = new Vector3(
+                spine.localPosition.x - Mathf.Abs(spine.localScale.x) * 0.625f,
+                spine.localPosition.y,
+                spine.localPosition.z);
             // BOXROOM's stock spine labels read from the top of the case down.
             // Face the printed side of the spine. The previous -90 Y showed
             // TextMeshPro from behind, mirroring every glyph.
@@ -346,6 +389,35 @@ namespace BR_BookSystem
                 "graphic novel" => 0.50f,
                 _ => 0.46f
             };
+        }
+    }
+
+    /// <summary>
+    /// Temporarily removes BOXROOM's native inspect overlay while a book reader is
+    /// active. The same state owner is shared by PageFlip and the fallback reader
+    /// so metadata, colour controls, and action prompts cannot remain underneath.
+    /// </summary>
+    internal static class BookInspectUiVisibility
+    {
+        private static GameObject suspendedMenu;
+        private static bool wasActive;
+
+        internal static void Suspend()
+        {
+            if (suspendedMenu != null) return;
+            Menu_Inspect menu = UnityEngine.Object.FindFirstObjectByType<Menu_Inspect>();
+            if (menu == null) return;
+            suspendedMenu = menu.gameObject;
+            wasActive = suspendedMenu.activeSelf;
+            suspendedMenu.SetActive(false);
+        }
+
+        internal static void Restore()
+        {
+            if (suspendedMenu != null && wasActive)
+                suspendedMenu.SetActive(true);
+            suspendedMenu = null;
+            wasActive = false;
         }
     }
 
@@ -947,15 +1019,18 @@ namespace BR_BookSystem
 
         internal void Open(BookData selected)
         {
-            if (IsExternalDocument(selected))
+            if (PageFlipReaderController.Open(selected))
             {
-                OpenExternalDocument(selected);
+                BookInspectUiVisibility.Suspend();
+                BookHandVisual.Hide();
                 return;
             }
 
-            if (PageFlipReaderController.Open(selected))
+            if (string.Equals(selected.Extension, ".pdf", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(selected.Extension, ".epub", StringComparison.OrdinalIgnoreCase))
             {
-                BookHandVisual.Hide();
+                MelonLogger.Warning("The in-game document reader was unavailable; opening the book with the operating system instead.");
+                OpenExternalDocument(selected);
                 return;
             }
 
@@ -967,21 +1042,16 @@ namespace BR_BookSystem
             if (pages.Count == 0) return;
             book = selected;
             SetPage(0);
+            BookInspectUiVisibility.Suspend();
             BookHandVisual.Hide();
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
         }
 
         /// <summary>
-        /// PDF and EPUB rendering is delegated to the user's chosen OS application.
-        /// This avoids embedding heavyweight document engines and respects existing
-        /// accessibility, DRM, annotation, and reader preferences.
+        /// EPUB rendering, and PDF fallback when PDFium cannot initialize, is
+        /// delegated to the user's chosen OS application.
         /// </summary>
-        private static bool IsExternalDocument(BookData selected) =>
-            selected != null &&
-            (string.Equals(selected.Extension, ".pdf", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(selected.Extension, ".epub", StringComparison.OrdinalIgnoreCase));
-
         private static void OpenExternalDocument(BookData selected)
         {
             if (string.IsNullOrWhiteSpace(selected.ContentPath) ||
@@ -1009,6 +1079,9 @@ namespace BR_BookSystem
         private void Update()
         {
             if (!IsOpen || Keyboard.current == null) return;
+            // PageFlip owns its own navigation and close lifecycle. Do not also
+            // run the fallback reader controls against an empty page list.
+            if (PageFlipReaderController.Instance?.IsOpen == true) return;
             if (Keyboard.current.escapeKey.wasPressedThisFrame || Keyboard.current.bKey.wasPressedThisFrame) Close();
             else if (Keyboard.current.rightArrowKey.wasPressedThisFrame || Keyboard.current.dKey.wasPressedThisFrame) SetPage(pageIndex + 1);
             else if (Keyboard.current.leftArrowKey.wasPressedThisFrame || Keyboard.current.aKey.wasPressedThisFrame) SetPage(pageIndex - 1);
@@ -1073,6 +1146,7 @@ namespace BR_BookSystem
             pages.Clear();
             if (pageTexture != null) Destroy(pageTexture);
             pageTexture = null;
+            BookInspectUiVisibility.Restore();
             PlayerInteractionTool tool = UnityEngine.Object.FindFirstObjectByType<PlayerInteractionTool>();
             BookHandVisual.ShowCurrent(tool);
         }

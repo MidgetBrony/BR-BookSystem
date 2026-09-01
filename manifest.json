@@ -9,12 +9,18 @@
   "dependencies": [
     {
       "manifest": "https://raw.githubusercontent.com/MidgetBrony/BR-MediaAPI/refs/heads/main/manifest.json",
-      "minimumVersion": "1.0.0",
+      "minimumVersion": "1.0.1",
+      "required": true
+    },
+    {
+      "manifest": "https://raw.githubusercontent.com/MidgetBrony/ModsPanel/refs/heads/master/manifest.json",
+      "minimumVersion": "2.5.0",
       "required": true
     }
   ],
   "release": {
     "provider": "github",
-    "asset": "BR-BookSystem.zip"
+    "asset": "BR-BookSystem.zip",
+    "checksumAsset": "SHA256SUMS.txt"
   }
 }

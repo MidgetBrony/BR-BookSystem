@@ -5,8 +5,7 @@ the game's existing GameBoxes and Music Albums: you can take one from the Book
 Box, carry it, place it around the room, organize it on supported shelves,
 inspect it, and read it.
 
-The mod supports in-game CBZ/CBR reading as well as PDF/EPUB books through your
-normal desktop reader.
+The mod supports in-game CBZ, CBR, PDF, and EPUB reading.
 
 ## What it adds
 
@@ -14,20 +13,27 @@ normal desktop reader.
 - Books that can be held, freely placed, picked up, deleted, and saved with the
   room.
 - Proper placement on BOXROOM shelves and compatible media containers.
-- Cover artwork on the front and automatically sized title text on the spine.
+- Cover artwork on the front, cover-shaped portrait or wide models, and
+  automatically sized title text on the spine.
 - Different physical thicknesses based on the book's `Type` metadata.
 - A BOXROOM-style inspection screen showing the book's metadata.
 - A **Read** action in place of the normal GameBox/Album action.
-- An in-game PageFlip reader for CBZ and CBR comics.
-- PDF and EPUB launching through the operating system's default application.
-- A configurable **Book Folder Location** in the shared ModsPanel screen.
+- An in-game PageFlip reader for CBZ, CBR, PDF, and EPUB books.
+- Per-book reading progress that restores the last open spread for every format.
+- Manga right-to-left reading when metadata uses `"Type": "Manga"`.
+- A configurable **Book Folder Location**, EPUB font size, and EPUB font type in
+  the shared ModsPanel screen.
 
 ## Requirements
 
 - BOXROOM with MelonLoader installed.
-- The runtime files included in the release ZIP, including `ModsPanel.dll`.
-- An application associated with `.pdf` or `.epub` files if you want to use
-  those formats.
+- BR-MediaAPI 1.0.1 or newer.
+- ModsPanel 2.5.0 or newer.
+- The format-reader runtime files included in the release ZIP.
+
+BoxMate installs and updates BR-MediaAPI and ModsPanel automatically from the
+dependencies declared in `manifest.json`. Manual installations must install
+those two required mods separately.
 
 ## Installation
 
@@ -38,16 +44,22 @@ normal desktop reader.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.
 6. Start BOXROOM.
 
-The release includes:
+The BR-BookSystem release includes:
 
 ```text
 BOXROOM/
-└── Mods/
-    ├── BR_BookSystem.dll
-    ├── ModsPanel.dll
-    ├── boxroomplus
-    ├── SharpCompress.dll
-    └── System.Text.Encoding.CodePages.dll
+├── Mods/
+│   ├── BR_BookSystem.dll
+│   ├── PDFtoImage.dll
+│   ├── VersOne.Epub.dll
+│   ├── ModsPanel.dll
+│   ├── boxroomplus
+│   ├── SharpCompress.dll
+│   └── System.Text.Encoding.CodePages.dll
+└── BOXROOM_Data/
+    └── Plugins/
+        └── x86_64/
+            └── pdfium.dll
 ```
 
 `Boxroom_Books.dll` and `BR_BookSystem.dll` must not be enabled together. Both
@@ -85,6 +97,10 @@ individual book folder.
 Press **Refresh** after adding, removing, or changing books while BOXROOM is
 running. The selected library path is stored in BOXROOM's global Settings save;
 the mod contains no hardcoded library location.
+
+The same BR-BookSystem settings page has an **EPUB Reader** group. Choose a
+**Font Size** from 30–72 px and **Font Type** (Serif, Sans Serif, or Monospace).
+The saved choice takes effect the next time an EPUB is opened.
 
 ## Book folder format
 
@@ -128,9 +144,17 @@ CBR support uses SharpCompress and requires the included
 
 ### PDF and EPUB
 
-PDF and EPUB books open outside BOXROOM using the default application registered
-with the operating system. Install and associate a compatible reader before
-using **Read**. BR-BookSystem does not contain its own PDF or EPUB renderer.
+PDF books open inside the same PageFlip reader as comics. Pages are rendered on
+demand around the current spread, so large PDFs do not have to be converted or
+retained in memory all at once. Annotations and filled forms are included in the
+rendered page image.
+
+EPUB chapter text is read in the book's declared spine order, reflowed using the
+selected font settings, and rendered on demand in PageFlip. Embedded JPEG, PNG,
+WebP, and other Skia-readable raster illustrations are preserved in reading
+order and shown as centered, aspect-fit pages—useful for light novels. Complex
+CSS layouts and SVG illustrations are not currently reproduced. If an EPUB
+cannot be parsed, the mod falls back to the operating system's associated reader.
 
 ## Using books in BOXROOM
 
@@ -140,8 +164,19 @@ using **Read**. BR-BookSystem does not contain its own PDF or EPUB renderer.
 4. Pick it up and use BOXROOM's normal inspect input.
 5. Select **Read** from the inspection interface.
 
-For CBZ/CBR PageFlip books, use the page controls to move backward and forward.
+For CBZ/CBR/PDF/EPUB PageFlip books, use the page controls to move backward and forward.
+With no text field focused, `A` or Left Arrow invokes Previous and `D` or Right
+Arrow invokes Next. These shortcuts use the existing button actions.
 Press `Esc`, `B`, or the controller back action to close the reader.
+The current spread is saved by `BookID` after each page turn and when the reader
+closes, then restored the next time that book is opened.
+
+Books whose metadata has `"Type": "Manga"` open at the right-hand beginning
+with the cover alone on the left and a blank side on the right, then advance
+through their pages right-to-left.
+Their Previous/Next buttons and
+keyboard shortcuts retain their semantic meaning while PageFlip uses the
+opposite physical turn direction.
 
 ## Saving and restoring
 
@@ -167,11 +202,18 @@ missing or a `BookID` changes, the saved object cannot restore its book data.
   present in `BOXROOM/Mods`.
 - Restart BOXROOM after replacing dependencies.
 
-### PDF or EPUB does not open
+### PDF does not open in PageFlip
 
-- Open the file from Windows first.
-- Choose or install a default PDF/EPUB reader when prompted.
-- Return to BOXROOM and select **Read** again.
+- Confirm `PDFtoImage.dll` is present in `BOXROOM/Mods`.
+- Confirm `pdfium.dll` is present in `BOXROOM_Data/Plugins/x86_64`.
+- Restart BOXROOM after replacing either dependency.
+
+### EPUB does not open in PageFlip
+
+- Confirm `VersOne.Epub.dll` is present in `BOXROOM/Mods`.
+- Check the MelonLoader log for malformed EPUB spine or chapter errors.
+- If in-game parsing fails, choose an associated desktop EPUB reader when the
+  operating system fallback opens.
 
 ### Books conflict, disappear, or behave like the old mod
 
@@ -187,8 +229,10 @@ missing assets/dependencies, failed readers, and failed BOXROOM integration.
 ## Building from source
 
 The PageFlip sources used by the reader are included under `PageFlip/`; the
-separate historical `AssetLoader` project is not required. BR-BookSystem v1.1.0
-also references the sibling `ModsPanel` project, which must be built first.
+separate historical `AssetLoader` project is not required. The source build
+references sibling `BR-MediaAPI` and `ModsPanel` repositories. Building the
+solution builds ModsPanel automatically; BR-MediaAPI must already have a
+Release build available at the documented sibling path.
 
 ### Configure the BOXROOM path
 
@@ -249,7 +293,12 @@ hierarchies, models, anchors, materials, or the PageFlip UI require an updated
   placement, and save-state integration.
 - `BookEnhancements.cs` — held and inspection visuals, spine text, thickness,
   Read prompts, external-document launching, and fallback reading.
-- `PageFlipReaderController.cs` — connects BookData and comic pages to PageFlip.
+- `PageFlipReaderController.cs` — common CBZ/CBR/PDF/EPUB reader lifecycle,
+  lazy page rendering, keyboard actions, Manga RTL layout, and progress hooks.
+- `EpubPageRenderer.cs` — EPUB spine parsing, text pagination, font rendering,
+  and embedded raster illustrations.
+- `EpubReaderSettings.cs` — persisted EPUB font controls in ModsPanel.
+- `ReadingProgress.cs` — per-`BookID` last-spread persistence for every format.
 - `PageFlip/` — vendored page-curl implementation; original attribution is
   retained in `PageFlip/Book.cs`.
 - `ComicArchive.cs` — CBZ/CBR extraction and natural page ordering.
@@ -260,4 +309,5 @@ paths are required.
 ## Third-party components
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for SharpCompress,
-System.Text.Encoding.CodePages, and PageFlip attribution.
+System.Text.Encoding.CodePages, PDFtoImage/PDFium, VersOne.Epub, ModsPanel, and
+PageFlip attribution.
