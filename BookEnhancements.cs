@@ -130,16 +130,18 @@ namespace BR_BookSystem
             Transform cover = Find(visual.transform, "Cover");
             Renderer renderer = cover != null ? cover.GetComponent<Renderer>() : null;
             float coverAspect = DefaultCoverAspect;
-            if (renderer != null && book.CoverArtBytes != null)
+            if (renderer != null)
             {
-                Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-                if (ImageConversion.LoadImage(texture, book.CoverArtBytes))
+                BookCoverTextureLease lease =
+                    visual.GetComponent<BookCoverTextureLease>() ??
+                    visual.AddComponent<BookCoverTextureLease>();
+                Texture2D texture = lease.Bind(book, BookCoverTextureCache.DetailMaxSize);
+                if (texture != null)
                 {
-                    if (texture.height > 0) coverAspect = (float)texture.width / texture.height;
+                    if (book.CoverAspectRatio > 0f)
+                        coverAspect = book.CoverAspectRatio;
                     ApplyTexture(renderer, texture);
                 }
-                else
-                    UnityEngine.Object.Destroy(texture);
             }
             ApplyShape(visual, book, coverAspect);
             RuntimeBookSpine.Apply(visual, book);
@@ -165,7 +167,22 @@ namespace BR_BookSystem
         }
 
         internal static void ApplyThickness(GameObject visual, BookData book) =>
-            ApplyShape(visual, book, DefaultCoverAspect);
+            ApplyShape(
+                visual,
+                book,
+                book?.CoverAspectRatio > 0f
+                    ? book.CoverAspectRatio
+                    : DefaultCoverAspect);
+
+        internal static void ApplyShelf(GameObject visual, BookData book)
+        {
+            if (visual == null || book == null) return;
+            float aspect = book.CoverAspectRatio > 0f
+                ? book.CoverAspectRatio
+                : DefaultCoverAspect;
+            ApplyShape(visual, book, aspect);
+            RuntimeBookSpine.Apply(visual, book);
+        }
 
         private static void ApplyShape(GameObject visual, BookData book, float coverAspect)
         {
@@ -461,8 +478,7 @@ namespace BR_BookSystem
         private static void Postfix(ShelfBookItem __instance, SteamShelf.Media.IMediaItem item)
         {
             if (item is not BookData book) return;
-            BookVisual.Apply(__instance.gameObject, book);
-            RuntimeBookSpine.Apply(__instance.gameObject, book);
+            BookVisual.ApplyShelf(__instance.gameObject, book);
         }
     }
 

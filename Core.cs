@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "1.6.2", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.0.0", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 
@@ -65,6 +65,7 @@ namespace BR_BookSystem
 
         public override void OnDeinitializeMelon()
         {
+            Boxroom_Books.BookCoverTextureCache.EvictAll();
             Boxroom_Books.BookAssetBundle.Unload();
         }
 

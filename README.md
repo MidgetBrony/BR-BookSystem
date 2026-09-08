@@ -15,6 +15,8 @@ The mod supports in-game CBZ, CBR, PDF, and EPUB reading.
 - Proper placement on BOXROOM shelves and compatible media containers.
 - Cover artwork on the front, cover-shaped portrait or wide models, and
   automatically sized title text on the spine.
+- Demand-loaded, resolution-limited cover textures designed for very large
+  libraries without retaining every cover in memory.
 - Different physical thicknesses based on the book's `Type` metadata.
 - A BOXROOM-style inspection screen showing the book's metadata.
 - A **Read** action in place of the normal GameBox/Album action.
@@ -38,7 +40,7 @@ those two required mods separately.
 ## Installation
 
 1. Close BOXROOM.
-2. Download `BR-BookSystem-1.6.2.zip` from the latest GitHub release.
+2. Download `BR-BookSystem-2.0.0.zip` from the latest GitHub release.
 3. Extract the ZIP into the BOXROOM game directory.
 4. Confirm that the included files landed in `BOXROOM/Mods`.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.
@@ -292,6 +294,8 @@ hierarchies, models, anchors, materials, or the PageFlip UI require an updated
   routing.
 - `PhysicalBooks/` — loose props, shelf items, pickup behavior, prefab loading,
   placement, and save-state integration.
+- `PhysicalBooks/BookCoverTextureCache.cs` — dimension-only cover discovery,
+  exposed-shelf demand loading, shared 512/1024px textures, and eviction.
 - `BookEnhancements.cs` — held and inspection visuals, spine text, thickness,
   Read prompts, external-document launching, and fallback reading.
 - `PageFlipReaderController.cs` — common CBZ/CBR/PDF/EPUB reader lifecycle,

@@ -92,8 +92,6 @@ namespace Boxroom_Books
             return dataProvider.Data != null;
         }
 
-        private Texture2D loadedCoverTexture;
-
         private void Awake()
         {
             SubscribeToProvider();
@@ -294,34 +292,13 @@ namespace Boxroom_Books
                 return;
             }
 
-            if (loadedCoverTexture != null)
+            Texture2D texture = BookCoverTextureCache.Get(data);
+            if (texture != null)
             {
-                Destroy(loadedCoverTexture);
-                loadedCoverTexture = null;
-            }
-
-            if (data.CoverArtBytes != null &&
-                data.CoverArtBytes.Length > 0)
-            {
-                loadedCoverTexture = new Texture2D(
-                    2,
-                    2,
-                    TextureFormat.RGBA32,
-                    mipChain: true);
-
-                if (loadedCoverTexture.LoadImage(
-                        data.CoverArtBytes))
-                {
-                    MaterialHelpers.SetTexture(
-                        coverRenderer,
-                        0,
-                        loadedCoverTexture);
-
-                    return;
-                }
-
-                Destroy(loadedCoverTexture);
-                loadedCoverTexture = null;
+                MaterialHelpers.SetTexture(
+                    coverRenderer,
+                    0,
+                    texture);
             }
         }
 

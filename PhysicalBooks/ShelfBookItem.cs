@@ -27,7 +27,6 @@ namespace Boxroom_Books
         private Renderer coverRenderer;
         private TMP_Text[] titleTexts = System.Array.Empty<TMP_Text>();
         private Renderer[] displayRenderers = System.Array.Empty<Renderer>();
-        private Texture2D loadedCoverTexture;
         private Texture2D nullCoverTexture;
         private Tweener placedTweener;
         private bool fullDisplayActive = true;
@@ -102,6 +101,13 @@ namespace Boxroom_Books
 
         public void HideCoverArt()
         {
+            // BOXROOM assumes equal-sized cases and hides any cover with an item in
+            // the next slot. Books vary in width, so retain the art when any part of
+            // this cover remains exposed.
+            if (!IsFullyCoveredByNextBook())
+                return;
+
+            ReleaseLoadedCover();
             ApplyCoverTexture(nullCoverTexture);
         }
 
@@ -152,7 +158,9 @@ namespace Boxroom_Books
                 }
             }
 
-            ApplyBookCover(book);
+            // PlaceableMediaContainer calls ShowCoverArt only for an exposed slot.
+            // Starting with the fallback avoids decoding every book during load.
+            ApplyCoverTexture(nullCoverTexture);
 
             if (playTween && placedTweener != null)
                 placedTweener.Play();
@@ -162,29 +170,24 @@ namespace Boxroom_Books
         {
             ReleaseLoadedCover();
 
-            if (book.CoverArtBytes != null &&
-                book.CoverArtBytes.Length > 0)
+            BookCoverTextureLease lease =
+                GetComponent<BookCoverTextureLease>() ??
+                gameObject.AddComponent<BookCoverTextureLease>();
+            Texture2D texture = lease.Bind(book, BookCoverTextureCache.ShelfMaxSize);
+            if (texture != null)
             {
-                loadedCoverTexture = new Texture2D(
-                    2,
-                    2,
-                    TextureFormat.RGBA32,
-                    mipChain: true);
+                // The shelf cover quad has a mirrored U axis. This is the same
+                // material correction used by held and inspected book prefabs and
+                // must be applied independently of whether the bitmap was resized.
+                BR_BookSystem.BookVisual.ApplyTexture(coverRenderer, texture);
 
-                if (loadedCoverTexture.LoadImage(book.CoverArtBytes))
+                foreach (TMP_Text text in titleTexts)
                 {
-                    ApplyCoverTexture(loadedCoverTexture);
-
-                    foreach (TMP_Text text in titleTexts)
-                    {
-                        if (text != null)
-                            text.gameObject.SetActive(false);
-                    }
-
-                    return;
+                    if (text != null)
+                        text.gameObject.SetActive(false);
                 }
 
-                ReleaseLoadedCover();
+                return;
             }
 
             ApplyCoverTexture(nullCoverTexture);
@@ -219,12 +222,64 @@ namespace Boxroom_Books
 
         private void ReleaseLoadedCover()
         {
-            if (loadedCoverTexture == null)
-                return;
-
-            Destroy(loadedCoverTexture);
-            loadedCoverTexture = null;
+            GetComponent<BookCoverTextureLease>()?.Unbind();
         }
+
+        private bool IsFullyCoveredByNextBook()
+        {
+            if (coverRenderer == null || transform.parent == null)
+                return false;
+
+            int siblingIndex = transform.GetSiblingIndex();
+            ShelfBookItem nearest = null;
+            int nearestIndex = int.MaxValue;
+
+            foreach (ShelfBookItem candidate in
+                     transform.parent.GetComponentsInChildren<ShelfBookItem>(true))
+            {
+                if (candidate == null || candidate == this ||
+                    !candidate.HasItemAndIsActive || candidate.coverRenderer == null)
+                {
+                    continue;
+                }
+
+                int candidateIndex = candidate.transform.GetSiblingIndex();
+                if (candidateIndex > siblingIndex && candidateIndex < nearestIndex)
+                {
+                    nearest = candidate;
+                    nearestIndex = candidateIndex;
+                }
+            }
+
+            if (nearest == null)
+                return false;
+
+            Bounds current = coverRenderer.bounds;
+            Bounds occluder = nearest.coverRenderer.bounds;
+            Vector3 size = current.size;
+
+            // Ignore the thinnest world axis (stack depth) and require containment
+            // across the two visible cover dimensions.
+            int depthAxis = size.x <= size.y && size.x <= size.z
+                ? 0
+                : size.y <= size.z ? 1 : 2;
+
+            const float tolerance = 0.0005f;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                if (axis == depthAxis) continue;
+                if (GetAxis(occluder.min, axis) > GetAxis(current.min, axis) + tolerance ||
+                    GetAxis(occluder.max, axis) < GetAxis(current.max, axis) - tolerance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static float GetAxis(Vector3 value, int axis) =>
+            axis == 0 ? value.x : axis == 1 ? value.y : value.z;
 
         private void OnDestroy()
         {

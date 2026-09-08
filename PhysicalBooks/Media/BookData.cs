@@ -29,9 +29,36 @@ public sealed class BookData : IMediaItem
 
     public int Volume { get; internal set; }
 
-    public byte[] CoverArtBytes { get; internal set; }
+    public string CoverArtPath { get; internal set; } = "";
 
-    public bool CoverArtLoaded { get; internal set; }
+    public float CoverAspectRatio { get; internal set; }
+
+    public byte[] CoverArtBytes
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(CoverArtPath) ||
+                !System.IO.File.Exists(CoverArtPath))
+            {
+                return null;
+            }
+
+            try
+            {
+                // Compatibility path for IMediaItem consumers. Do not retain the
+                // encoded file in every BookData instance.
+                return System.IO.File.ReadAllBytes(CoverArtPath);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    public bool CoverArtLoaded =>
+        !string.IsNullOrWhiteSpace(CoverArtPath) &&
+        System.IO.File.Exists(CoverArtPath);
 
     public bool MetadataLoaded { get; internal set; }
 

@@ -12,6 +12,7 @@ namespace Boxroom_Books
     /// </summary>
     public class BookDataProvider : MonoBehaviour
     {
+        private bool coverAcquired;
         public string BookId { get; private set; } = "";
 
         public BookData Data { get; private set; }
@@ -64,10 +65,12 @@ namespace Boxroom_Books
             if (Data == null)
                 return;
 
-            CoverArtReady =
-                Data.CoverArtLoaded &&
-                Data.CoverArtBytes != null &&
-                Data.CoverArtBytes.Length > 0;
+            if (!coverAcquired)
+            {
+                coverAcquired = BookCoverTextureCache.Acquire(Data) != null;
+            }
+
+            CoverArtReady = coverAcquired;
 
             if (CoverArtReady)
                 OnCoverArtReady?.Invoke(Data);
@@ -75,10 +78,16 @@ namespace Boxroom_Books
 
         public void Clear()
         {
+            if (coverAcquired && Data != null)
+                BookCoverTextureCache.Release(Data.Id);
+
+            coverAcquired = false;
             BookId = "";
             Data = null;
             MetadataReady = false;
             CoverArtReady = false;
         }
+
+        private void OnDestroy() => Clear();
     }
 }

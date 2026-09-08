@@ -125,8 +125,10 @@ namespace Boxroom_Books
 
                 if (File.Exists(cover))
                 {
-                    book.CoverArtBytes = File.ReadAllBytes(cover);
-                    book.CoverArtLoaded = true;
+                    // Keep only the path in the library index. Cover bytes and the
+                    // decoded texture are loaded on demand for exposed books.
+                    book.CoverArtPath = cover;
+                    book.CoverAspectRatio = CoverImageInfo.ReadAspectRatio(cover);
                 }
 
                 Add(book);
