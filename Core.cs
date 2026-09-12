@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.0.0", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.0.1", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 
@@ -23,7 +23,6 @@ namespace BR_BookSystem
             MediaApi.Register(new MediaTypeDefinition
             {
                 Id = (int)Boxroom_Books.BookMedia.Type,
-                AllowLegacyId = true,
                 Key = "Rusty.BR-BookSystem",
                 DisplayName = "Books",
                 ModelType = typeof(Boxroom_Books.BookData),

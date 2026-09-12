@@ -6,8 +6,8 @@
 		<RootNamespace>BR_BookSystem</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<PlatformTarget>x64</PlatformTarget>
-		<AssemblyVersion>2.0.0.0</AssemblyVersion>
-		<FileVersion>2.0.0.0</FileVersion>
+		<AssemblyVersion>2.0.1.0</AssemblyVersion>
+		<FileVersion>2.0.1.0</FileVersion>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<AssemblyName>BR_BookSystem</AssemblyName>
 		<LangVersion>latest</LangVersion>
@@ -462,6 +462,7 @@
 
 	<ItemGroup>
 		<Compile Include="Core.cs" />
+		<Compile Include="LegacyBookMediaTypeMigration.cs" />
 		<Compile Include="BookEnhancements.cs" />
 		<Compile Include="PageFlipReaderController.cs" />
 		<Compile Include="EpubPageRenderer.cs" />

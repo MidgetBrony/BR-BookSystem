@@ -40,7 +40,7 @@ those two required mods separately.
 ## Installation
 
 1. Close BOXROOM.
-2. Download `BR-BookSystem-2.0.0.zip` from the latest GitHub release.
+2. Download `BR-BookSystem-2.0.1.zip` from the latest GitHub release.
 3. Extract the ZIP into the BOXROOM game directory.
 4. Confirm that the included files landed in `BOXROOM/Mods`.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.
@@ -65,8 +65,8 @@ BOXROOM/
             └── pdfium.dll
 ```
 
-`Boxroom_Books.dll` and `BR_BookSystem.dll` must not be enabled together. Both
-claim BOXROOM media type `2`, which causes conflicting book systems.
+`Boxroom_Books.dll` and `BR_BookSystem.dll` must not be enabled together. The
+legacy mod still uses the former Books media type and conflicts with this system.
 
 ## Setting up your library
 
@@ -190,6 +190,19 @@ art are loaded again from the configured library.
 Keep a book's folder and `BookID` available after placing it. If the library is
 missing or a `BookID` changes, the saved object cannot restore its book data.
 
+### One-time media type migration
+
+This pre-Movies release contains a temporary migration for rooms saved when
+Books used media type `2`. Load each existing room and save it once. Recognized
+loose and shelved Books retain their `BookID`, position, rotation, scale, shelf
+slot, and other saved state while their media type is changed to `1002`.
+
+The MelonLoader log reports the number of loose and shelf references migrated,
+plus any unrecognized type-`2` shelf references left unchanged. Keep the
+configured Book library available during migration so shelf `BookID` values can
+be verified. This code does not register type `2` as Books and is intended to be
+removed before BOXROOM assigns type `2` to native Movies.
+
 ## Troubleshooting
 
 ### No books appear
@@ -221,7 +234,7 @@ missing or a `BookID` changes, the saved object cannot restore its book data.
 ### Books conflict, disappear, or behave like the old mod
 
 Remove `Boxroom_Books.dll`. Only `BR_BookSystem.dll` should provide Books media
-type `2`.
+type `1002`.
 
 ### Finding useful errors
 

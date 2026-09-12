@@ -14,7 +14,7 @@ pdfium = (
 )
 dist = root / "dist"
 dist.mkdir(exist_ok=True)
-archive_path = dist / "BR-BookSystem-2.0.0.zip"
+archive_path = dist / "BR-BookSystem-2.0.1.zip"
 
 files = {
     output / "BR_BookSystem.dll": "Mods/BR_BookSystem.dll",

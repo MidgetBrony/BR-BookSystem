@@ -6,8 +6,8 @@
 3. Close BOXROOM.
 4. Open the downloaded ZIP and copy its `Mods` and `BOXROOM_Data` folders into
    the BOXROOM game directory. Allow Windows to merge both folders.
-5. Remove or disable the old `Boxroom_Books.dll` if it is present. Both mods use
-   media type `2` and cannot be enabled together.
+5. Remove or disable the old `Boxroom_Books.dll` if it is present. It still uses
+   the former Books media type and is not compatible with BR-BookSystem.
 6. Start BOXROOM and open **Mods**, then **Mod Settings**.
 7. In the **BR-BookSystem** section, use **Browse** beside **Book Folder
    Location** and select the folder containing your individual book folders.
