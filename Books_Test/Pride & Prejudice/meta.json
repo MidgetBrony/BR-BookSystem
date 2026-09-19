@@ -1,11 +1,11 @@
 {
-  "Version": 1,
+  "Version": 2,
   "BookID": "p&p_jane_austen",
   "Title": "Pride & Prejudice",
   "Series": "",
-  "Volume": 1,
   "Author": "Jane Austen",
   "Publisher": "Public Domain",
   "Language": "en",
-  "Type": "Hardcover"
+  "Type": "Hardcover",
+  "Summary": "Elizabeth Bennet and Mr Darcy must look beyond first impressions, family pressures, and their own pride."
 }

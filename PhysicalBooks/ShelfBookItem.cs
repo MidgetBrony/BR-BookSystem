@@ -4,6 +4,7 @@ using SteamShelf;
 using SteamShelf.Media;
 using SteamShelf.Placeables;
 using SteamShelf.Tweening;
+using System.Collections;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
@@ -29,6 +30,7 @@ namespace Boxroom_Books
         private Renderer[] displayRenderers = System.Array.Empty<Renderer>();
         private Texture2D nullCoverTexture;
         private Tweener placedTweener;
+        private Coroutine pendingVisualRefresh;
         private bool fullDisplayActive = true;
 
         public bool HasItemAndIsActive =>
@@ -95,6 +97,11 @@ namespace Boxroom_Books
 
         public void Clear()
         {
+            if (pendingVisualRefresh != null)
+            {
+                StopCoroutine(pendingVisualRefresh);
+                pendingVisualRefresh = null;
+            }
             bookInfo = null;
             ResetDisplay();
         }
@@ -162,8 +169,33 @@ namespace Boxroom_Books
             // Starting with the fallback avoids decoding every book during load.
             ApplyCoverTexture(nullCoverTexture);
 
+            // Apply the physical binding here rather than relying on one SetItem
+            // overload. Source-box fill, direct placement, and save restoration can
+            // enter through different overloads, but they all finish in SetBook.
+            BR_BookSystem.BookVisual.ApplyShelf(gameObject, book);
+
             if (playTween && placedTweener != null)
                 placedTweener.Play();
+
+            if (pendingVisualRefresh != null)
+                StopCoroutine(pendingVisualRefresh);
+            pendingVisualRefresh = StartCoroutine(ReapplyVisualAfterPlacement(book));
+        }
+
+        private IEnumerator ReapplyVisualAfterPlacement(BookData expectedBook)
+        {
+            // PlaceableMediaContainer/Tweener restores authored prefab transforms
+            // during placement. Reassert the Manga spine presentation after that
+            // lifecycle has completed, without touching the shelf item's root.
+            yield return null;
+            if (bookInfo == expectedBook)
+                BR_BookSystem.BookVisual.ApplyShelf(gameObject, expectedBook);
+
+            yield return new WaitForSecondsRealtime(0.75f);
+            if (bookInfo == expectedBook)
+                BR_BookSystem.BookVisual.ApplyShelf(gameObject, expectedBook);
+
+            pendingVisualRefresh = null;
         }
 
         private void ApplyBookCover(BookData book)
@@ -283,6 +315,8 @@ namespace Boxroom_Books
 
         private void OnDestroy()
         {
+            if (pendingVisualRefresh != null)
+                StopCoroutine(pendingVisualRefresh);
             ReleaseLoadedCover();
         }
     }

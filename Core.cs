@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.0.1", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.1.0-beta.1", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 
@@ -56,9 +56,11 @@ namespace BR_BookSystem
                     PanelTitle = "BR-BookSystem",
                     PanelOrder = 100,
                     Reload = Boxroom_Books.BookLibrarySystem.LoadCache,
-                    GetStatus = () => $"{Boxroom_Books.BookLibrarySystem.GetKnownBooks().Count} books found"
+                    GetStatus = () => $"{Boxroom_Books.BookLibrarySystem.GetKnownBooks().Count} books found" +
+                        (BookMetadataSettings.PreferCalibreOpf ? " (Calibre OPF preferred)" : string.Empty)
                 }
             });
+            BookMetadataSettings.Initialize();
             EpubReaderSettings.Initialize();
         }
 

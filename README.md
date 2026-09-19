@@ -21,8 +21,11 @@ The mod supports in-game CBZ, CBR, PDF, and EPUB reading.
 - A BOXROOM-style inspection screen showing the book's metadata.
 - A **Read** action in place of the normal GameBox/Album action.
 - An in-game PageFlip reader for CBZ, CBR, PDF, and EPUB books.
+- Lazy CBZ/CBR page extraction and texture decoding, with only the current
+  reading window retained in memory.
 - Per-book reading progress that restores the last open spread for every format.
-- Manga right-to-left reading when metadata uses `"Type": "Manga"`.
+- Right-bound physical Manga books and right-to-left reading when metadata uses
+  `"Type": "Manga"`; ordinary books remain left-bound.
 - A configurable **Book Folder Location**, EPUB font size, and EPUB font type in
   the shared ModsPanel screen.
 
@@ -40,7 +43,9 @@ those two required mods separately.
 ## Installation
 
 1. Close BOXROOM.
-2. Download `BR-BookSystem-2.0.1.zip` from the latest GitHub release.
+2. Download the versioned `BR-BookSystem-*.zip` from the desired GitHub release.
+   BoxMate users can select **Beta** for numbered prereleases such as
+   `2.1.0-beta.1`; **Stable** continues to use the latest stable release.
 3. Extract the ZIP into the BOXROOM game directory.
 4. Confirm that the included files landed in `BOXROOM/Mods`.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.
@@ -105,11 +110,19 @@ The same BR-BookSystem settings page has an **EPUB Reader** group. Choose a
 **Font Size** from 30–72 px and **Font Type** (Serif, Sans Serif, or Monospace).
 The saved choice takes effect the next time an EPUB is opened.
 
+For a normal Calibre library, enable **Use Calibre metadata.opf when available**
+in the **Book Metadata** group. BR-BookSystem then reads Calibre's title,
+authors, description, publisher, language, identifiers, series, and series
+index directly. A book without `metadata.opf` still falls back to `meta.json`.
+When both files exist, the established `meta.json` `BookID` and custom `Type`
+are preserved so enabling OPF cannot detach books already referenced by room or
+shelf saves. A pure Calibre folder without `meta.json` uses Calibre's UUID.
+
 ## Book folder format
 
-Every book folder requires:
+Every book folder requires either `meta.json`, or `metadata.opf` while the
+Calibre option is enabled, plus:
 
-- `meta.json`
 - `cover.jpg`
 - One `.cbz`, `.cbr`, `.pdf`, or `.epub` file
 
@@ -117,17 +130,32 @@ Example `meta.json`:
 
 ```json
 {
-  "Version": 1,
+  "Version": 2,
   "BookID": "freedom_planet_vol14",
   "Title": "Freedom Planet #14",
   "Series": "Freedom Planet",
-  "Volume": 14,
+  "Volume": "14",
   "Author": "Tom Fulp",
   "Publisher": "GalaxyTrail",
+  "ISBN": "9781234567897",
   "Language": "en",
-  "Type": "Comic"
+  "Type": "Comic",
+  "Summary": "A concise description printed on the physical back cover."
 }
 ```
+
+`Summary` is optional and is printed on the physical back cover. `Volume` is
+optional series display metadata; it is a string so values such as `"1.5"` or
+`"Special"` are preserved. It is not used for book identity, ordering, saves,
+or reading progress. Version 1 files with numeric volumes remain compatible.
+`ISBN` is optional and appears in the lower-right back-cover footer. Direct OPF
+reading and `calibretometa.ps1` both import it when Calibre has an ISBN identifier.
+
+Run `calibretometa.ps1` against a Calibre library to create Version 2 metadata.
+The converter imports Calibre's description as a plain-text summary and only
+adds `Volume` when a series index exists. Pass `-Force` to refresh existing
+`meta.json` files. This conversion is optional when direct Calibre OPF reading
+is enabled.
 
 `BookID` must be unique and should remain unchanged after the book has been
 placed in a saved room. The other fields are displayed during inspection and

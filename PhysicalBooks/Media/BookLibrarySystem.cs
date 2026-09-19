@@ -83,14 +83,7 @@ namespace Boxroom_Books
         {
             try
             {
-                string metaFile = Path.Combine(folder, "meta.json");
-
-                if (!File.Exists(metaFile))
-                    return;
-
-                BookMetadata meta =
-                    JsonConvert.DeserializeObject<BookMetadata>(
-                        File.ReadAllText(metaFile));
+                BookMetadata meta = LoadMetadata(folder);
 
                 if (meta == null)
                     return;
@@ -102,8 +95,10 @@ namespace Boxroom_Books
                     Title = meta.Title,
                     Author = meta.Author,
                     Series = meta.Series,
+                    Summary = meta.Summary,
                     Volume = meta.Volume,
                     Publisher = meta.Publisher,
+                    Isbn = meta.ISBN,
                     Language = meta.Language,
                     BookType = meta.Type,
 
@@ -137,6 +132,42 @@ namespace Boxroom_Books
             {
                 MelonLogger.Error($"Failed loading book folder '{folder}': {ex}");
             }
+        }
+
+        private static BookMetadata LoadMetadata(string folder)
+        {
+            string metaFile = Path.Combine(folder, "meta.json");
+            string opfFile = Path.Combine(folder, "metadata.opf");
+            BookMetadata existing = File.Exists(metaFile)
+                ? JsonConvert.DeserializeObject<BookMetadata>(File.ReadAllText(metaFile))
+                : null;
+
+            if (BR_BookSystem.BookMetadataSettings.PreferCalibreOpf && File.Exists(opfFile))
+            {
+                try
+                {
+                    BookMetadata calibre = CalibreOpfReader.Read(opfFile, folder);
+
+                    // Shelf and loose-prop saves resolve media by BookID. Keep the
+                    // established BR-BookSystem identity when a converted metadata
+                    // file already exists, while allowing OPF to own descriptive data.
+                    if (!string.IsNullOrWhiteSpace(existing?.BookID))
+                        calibre.BookID = existing.BookID;
+
+                    // Type is BR-BookSystem behavior (not standard bibliographic
+                    // metadata) and controls thickness plus Manga reading direction.
+                    if (!string.IsNullOrWhiteSpace(existing?.Type))
+                        calibre.Type = existing.Type;
+
+                    return calibre;
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning($"Could not read Calibre metadata '{opfFile}'; falling back to meta.json: {ex.Message}");
+                }
+            }
+
+            return existing;
         }
     }
 }

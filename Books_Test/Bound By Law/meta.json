@@ -1,11 +1,11 @@
 {
-  "Version": 1,
+  "Version": 2,
   "BookID": "bound_by_law",
   "Title": "Bound By Law",
   "Series": "",
-  "Volume": 1,
   "Author": "Keith Aoki",
   "Publisher": "DC Comics",
   "Language": "en",
-  "Type": "Comic"
+  "Type": "Comic",
+  "Summary": "A graphic guide to copyright, creativity, and the law for artists and readers."
 }

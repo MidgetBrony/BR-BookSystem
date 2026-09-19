@@ -1,11 +1,11 @@
 {
-  "Version": 1,
+  "Version": 2,
   "BookID": "bram_stroker_dracula",
   "Title": "Dracula",
   "Series": "",
-  "Volume": 1,
   "Author": "Bram Stroker",
   "Publisher": "Public Domain",
   "Language": "en",
-  "Type": "paperback"
+  "Type": "paperback",
+  "Summary": "Jonathan Harker's journey to Transylvania draws him and his friends into a struggle against Count Dracula."
 }

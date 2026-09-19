@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 root = Path(__file__).resolve().parent.parent
+version = "2.1.0-beta.1"
 output = root / "bin/Release/netstandard2.1"
 pdfium = (
     Path.home()
@@ -14,7 +15,7 @@ pdfium = (
 )
 dist = root / "dist"
 dist.mkdir(exist_ok=True)
-archive_path = dist / "BR-BookSystem-2.0.1.zip"
+archive_path = dist / f"BR-BookSystem-{version}.zip"
 
 files = {
     output / "BR_BookSystem.dll": "Mods/BR_BookSystem.dll",

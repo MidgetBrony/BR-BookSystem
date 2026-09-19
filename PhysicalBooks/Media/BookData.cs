@@ -21,13 +21,17 @@ public sealed class BookData : IMediaItem
 
     public string Series { get; internal set; } = "";
 
+    public string Summary { get; internal set; } = "";
+
     public string Publisher { get; internal set; } = "";
+
+    public string Isbn { get; internal set; } = "";
 
     public string Language { get; internal set; } = "";
 
     public string BookType { get; internal set; } = "";
 
-    public int Volume { get; internal set; }
+    public string Volume { get; internal set; } = "";
 
     public string CoverArtPath { get; internal set; } = "";
 
@@ -101,11 +105,15 @@ public sealed class BookMetadata
 
     public string Series { get; set; } = "";
 
-    public int Volume { get; set; }
+    public string Volume { get; set; } = "";
+
+    public string Summary { get; set; } = "";
 
     public string Author { get; set; } = "";
 
     public string Publisher { get; set; } = "";
+
+    public string ISBN { get; set; } = "";
 
     public string Language { get; set; } = "";
 

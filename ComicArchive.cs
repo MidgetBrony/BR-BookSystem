@@ -19,6 +19,42 @@ namespace BR_BookSystem
     /// naturally (2 before 10), matching the reading order expected by comic files.
     /// Archive data is returned as bytes so Unity textures can be created on demand.
     /// </summary>
+    internal sealed class ComicArchiveReader : IDisposable
+    {
+        private IArchive archive;
+        private readonly List<IArchiveEntry> pages;
+
+        internal ComicArchiveReader(IArchive archive, List<IArchiveEntry> pages)
+        {
+            this.archive = archive;
+            this.pages = pages;
+        }
+
+        internal int Count => pages.Count;
+
+        internal ComicPage ReadPage(int index)
+        {
+            if (index < 0 || index >= pages.Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
+            IArchiveEntry entry = pages[index];
+            using Stream input = entry.OpenEntryStream();
+            using var output = new MemoryStream();
+            input.CopyTo(output);
+            return new ComicPage
+            {
+                Name = Path.GetFileNameWithoutExtension(entry.Key),
+                Bytes = output.ToArray()
+            };
+        }
+
+        public void Dispose()
+        {
+            archive?.Dispose();
+            archive = null;
+        }
+    }
+
     internal static class ComicArchive
     {
         internal static string Find(string folder)
@@ -30,27 +66,26 @@ namespace BR_BookSystem
                 .FirstOrDefault();
         }
 
-        internal static List<ComicPage> ReadPages(string archivePath)
+        internal static ComicArchiveReader Open(string archivePath)
         {
             if (string.IsNullOrWhiteSpace(archivePath) || !File.Exists(archivePath))
                 throw new FileNotFoundException("Comic archive was not found.", archivePath);
 
-            var pages = new List<ComicPage>();
-            using IArchive archive = ArchiveFactory.OpenArchive(archivePath);
-            foreach (IArchiveEntry entry in archive.Entries
-                .Where(entry => !entry.IsDirectory && IsImage(entry.Key))
-                .OrderBy(entry => entry.Key, NaturalComparer.Instance))
+            IArchive archive = ArchiveFactory.OpenArchive(archivePath);
+            try
             {
-                using Stream input = entry.OpenEntryStream();
-                using var output = new MemoryStream();
-                input.CopyTo(output);
-                pages.Add(new ComicPage
-                {
-                    Name = Path.GetFileNameWithoutExtension(entry.Key),
-                    Bytes = output.ToArray()
-                });
+                List<IArchiveEntry> pages = archive.Entries
+                .Where(entry => !entry.IsDirectory && IsImage(entry.Key))
+                .OrderBy(entry => entry.Key, NaturalComparer.Instance)
+                .ToList();
+
+                return new ComicArchiveReader(archive, pages);
             }
-            return pages;
+            catch
+            {
+                archive.Dispose();
+                throw;
+            }
         }
 
         private static bool IsComicArchive(string path)

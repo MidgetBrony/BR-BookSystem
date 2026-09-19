@@ -29,9 +29,9 @@ namespace BR_BookSystem
         private Button previousButton;
         private AutoFlip flip;
         private Book pageFlipBook;
-        private readonly List<Sprite> loadedSprites = new();
-        private readonly List<Texture2D> loadedTextures = new();
-        private readonly Dictionary<int, PdfPageAsset> pdfPageCache = new();
+        private readonly Dictionary<int, PageAsset> pageCache = new();
+        private readonly HashSet<int> failedPages = new();
+        private ComicArchiveReader comicArchive;
         private byte[] pdfBytes;
         private List<EpubReaderPage> epubPages;
         private Texture2D pdfPlaceholderTexture;
@@ -40,7 +40,7 @@ namespace BR_BookSystem
         private bool rightToLeftReading;
         private int sourcePageCount;
 
-        private sealed class PdfPageAsset
+        private sealed class PageAsset
         {
             internal Texture2D Texture;
             internal Sprite Sprite;
@@ -109,15 +109,19 @@ namespace BR_BookSystem
                 if (pageFlipBook.bookPages.Length == 0) throw new InvalidOperationException("The CBZ contains no readable images.");
                 activeBookId = data.Id;
                 pageFlipBook.currentPage = ReadingProgress.Get(activeBookId, pageFlipBook.bookPages.Length, rightToLeftReading);
-                if (pdfBytes != null || epubPages != null) RenderPdfWindow(pageFlipBook.currentPage);
+                if (HasLazyPages)
+                {
+                    RenderLazyWindow(pageFlipBook.currentPage);
+                    TrimPageCache(pageFlipBook.currentPage);
+                }
                 FitReaderToPages(pageFlipBook.bookPages);
 
                 nextButton.onClick.RemoveAllListeners();
                 previousButton.onClick.RemoveAllListeners();
-                if (pdfBytes != null || epubPages != null)
+                if (HasLazyPages)
                 {
-                    nextButton.onClick.AddListener(PrepareNextPdfPages);
-                    previousButton.onClick.AddListener(PreparePreviousPdfPages);
+                    nextButton.onClick.AddListener(PrepareNextLazyPages);
+                    previousButton.onClick.AddListener(PreparePreviousLazyPages);
                 }
                 pageFlipBook.OnFlip.AddListener(HandlePageFlip);
                 nextButton.onClick.AddListener(rightToLeftReading ? flip.FlipLeftPage : flip.FlipRightPage);
@@ -171,33 +175,17 @@ namespace BR_BookSystem
             if (string.Equals(data.Extension, ".epub", StringComparison.OrdinalIgnoreCase))
                 return ReadEpubPages(data.ContentPath);
 
-            var pages = new List<Sprite>();
             string archivePath = ComicArchive.Find(data.FolderPath);
             if (archivePath == null) throw new FileNotFoundException("No CBZ or CBR was found for the Book.", data.FolderPath);
-            foreach (ComicPage page in ComicArchive.ReadPages(archivePath))
-            {
-                Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (!ImageConversion.LoadImage(texture, page.Bytes, false))
-                {
-                    Destroy(texture);
-                    continue;
-                }
-                texture.name = page.Name;
-                Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
-                sprite.name = texture.name;
-                loadedTextures.Add(texture);
-                loadedSprites.Add(sprite);
-                pages.Add(sprite);
-            }
-            if (rightToLeftReading && pages.Count > 0)
-            {
-                pages.Reverse();
-                // A Manga begins with its cover on the left and an unopened blank
-                // side on the right. Appending the blank makes PageFlip show the
-                // reversed-array cover at currentPage - 1.
-                pages.Add(pageFlipBook.background);
-            }
-            return pages.ToArray();
+            comicArchive = ComicArchive.Open(archivePath);
+            sourcePageCount = comicArchive.Count;
+            if (sourcePageCount == 0)
+                throw new InvalidOperationException("The CBZ or CBR contains no readable images.");
+
+            Sprite[] pages = CreateLazyPageArray(rightToLeftReading ? sourcePageCount + 1 : sourcePageCount);
+            if (rightToLeftReading)
+                pages[sourcePageCount] = pageFlipBook.background;
+            return pages;
         }
 
         private Sprite[] ReadPdfPages(string path)
@@ -223,8 +211,6 @@ namespace BR_BookSystem
 
             Sprite[] pages = CreateLazyPageArray(rightToLeftReading ? pageCount + 1 : pageCount);
             if (rightToLeftReading) pages[pageCount] = pageFlipBook.background;
-            pageFlipBook.bookPages = pages;
-            RenderPdfWindow(0);
             return pages;
         }
 
@@ -236,8 +222,6 @@ namespace BR_BookSystem
             sourcePageCount = epubPages.Count;
             Sprite[] pages = CreateLazyPageArray(rightToLeftReading ? epubPages.Count + 1 : epubPages.Count);
             if (rightToLeftReading) pages[epubPages.Count] = pageFlipBook.background;
-            pageFlipBook.bookPages = pages;
-            RenderPdfWindow(0);
             return pages;
         }
 
@@ -258,29 +242,38 @@ namespace BR_BookSystem
             return Enumerable.Repeat(pdfPlaceholder, pageCount).ToArray();
         }
 
-        private void PrepareNextPdfPages()
+        private bool HasLazyPages => comicArchive != null || pdfBytes != null || epubPages != null;
+
+        private void PrepareNextLazyPages()
         {
-            if (pageFlipBook != null) RenderPdfWindow(pageFlipBook.currentPage + 2);
+            if (pageFlipBook != null)
+                RenderLazyWindow(pageFlipBook.currentPage + (rightToLeftReading ? -2 : 2));
         }
 
-        private void PreparePreviousPdfPages()
+        private void PreparePreviousLazyPages()
         {
-            if (pageFlipBook != null) RenderPdfWindow(pageFlipBook.currentPage - 2);
+            if (pageFlipBook != null)
+                RenderLazyWindow(pageFlipBook.currentPage + (rightToLeftReading ? 2 : -2));
         }
 
         private void HandlePageFlip()
         {
             if (pageFlipBook == null) return;
             ReadingProgress.Save(activeBookId, pageFlipBook.currentPage, pageFlipBook.bookPages.Length, rightToLeftReading);
-            if (pdfBytes != null || epubPages != null)
+            if (HasLazyPages)
             {
-                RenderPdfWindow(pageFlipBook.currentPage);
-                TrimPdfCache(pageFlipBook.currentPage);
+                RenderLazyWindow(pageFlipBook.currentPage);
+                TrimPageCache(pageFlipBook.currentPage);
             }
         }
 
-        private void RenderPdfWindow(int centerPage)
+        private void RenderLazyWindow(int centerPage)
         {
+            if (comicArchive != null)
+            {
+                RenderComicWindow(centerPage);
+                return;
+            }
             if (epubPages != null)
             {
                 RenderEpubWindow(centerPage);
@@ -299,7 +292,7 @@ namespace BR_BookSystem
 
             for (int page = first; page <= last; page++)
             {
-                if (pdfPageCache.ContainsKey(page)) continue;
+                if (pageCache.ContainsKey(page) || failedPages.Contains(page)) continue;
                 int sourcePage = MapSourcePage(page, sourcePageCount);
                 if (sourcePage < 0)
                 {
@@ -322,8 +315,52 @@ namespace BR_BookSystem
                     new Vector2(0.5f, 0.5f),
                     100f);
                 sprite.name = texture.name;
-                pdfPageCache[page] = new PdfPageAsset { Texture = texture, Sprite = sprite };
+                pageCache[page] = new PageAsset { Texture = texture, Sprite = sprite };
                 pageFlipBook.bookPages[page] = sprite;
+            }
+        }
+
+        private void RenderComicWindow(int centerPage)
+        {
+            if (comicArchive == null || pageFlipBook?.bookPages == null) return;
+            int first = Mathf.Max(0, centerPage - 3);
+            int last = Mathf.Min(pageFlipBook.bookPages.Length - 1, centerPage + 4);
+            for (int page = first; page <= last; page++)
+            {
+                if (pageCache.ContainsKey(page) || failedPages.Contains(page)) continue;
+                int sourcePage = MapSourcePage(page, sourcePageCount);
+                if (sourcePage < 0)
+                {
+                    pageFlipBook.bookPages[page] = pageFlipBook.background;
+                    continue;
+                }
+
+                try
+                {
+                    ComicPage comicPage = comicArchive.ReadPage(sourcePage);
+                    Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    if (!ImageConversion.LoadImage(texture, comicPage.Bytes, false))
+                    {
+                        Destroy(texture);
+                        failedPages.Add(page);
+                        continue;
+                    }
+
+                    texture.name = comicPage.Name;
+                    Sprite sprite = Sprite.Create(
+                        texture,
+                        new Rect(0, 0, texture.width, texture.height),
+                        new Vector2(0.5f, 0.5f),
+                        100f);
+                    sprite.name = texture.name;
+                    pageCache[page] = new PageAsset { Texture = texture, Sprite = sprite };
+                    pageFlipBook.bookPages[page] = sprite;
+                }
+                catch (Exception ex)
+                {
+                    failedPages.Add(page);
+                    MelonLogger.Warning($"Could not load comic page {sourcePage + 1}: {ex.Message}");
+                }
             }
         }
 
@@ -334,7 +371,7 @@ namespace BR_BookSystem
             int last = Mathf.Min(epubPages.Count - 1, centerPage + 4);
             for (int page = first; page <= last; page++)
             {
-                if (pdfPageCache.ContainsKey(page)) continue;
+                if (pageCache.ContainsKey(page) || failedPages.Contains(page)) continue;
                 int sourcePage = MapSourcePage(page, epubPages.Count);
                 if (sourcePage < 0)
                 {
@@ -370,19 +407,19 @@ namespace BR_BookSystem
                 new Vector2(0.5f, 0.5f),
                 100f);
             sprite.name = texture.name;
-            pdfPageCache[page] = new PdfPageAsset { Texture = texture, Sprite = sprite };
+            pageCache[page] = new PageAsset { Texture = texture, Sprite = sprite };
             pageFlipBook.bookPages[page] = sprite;
         }
 
-        private void TrimPdfCache(int centerPage)
+        private void TrimPageCache(int centerPage)
         {
-            foreach (int page in pdfPageCache.Keys.Where(page => Mathf.Abs(page - centerPage) > 6).ToArray())
+            foreach (int page in pageCache.Keys.Where(page => Mathf.Abs(page - centerPage) > 6).ToArray())
             {
-                PdfPageAsset asset = pdfPageCache[page];
+                PageAsset asset = pageCache[page];
                 pageFlipBook.bookPages[page] = pdfPlaceholder;
                 if (asset.Sprite != null) Destroy(asset.Sprite);
                 if (asset.Texture != null) Destroy(asset.Texture);
-                pdfPageCache.Remove(page);
+                pageCache.Remove(page);
             }
         }
 
@@ -478,20 +515,19 @@ namespace BR_BookSystem
             if (pageFlipBook != null) Destroy(pageFlipBook);
             flip = null;
             pageFlipBook = null;
-            foreach (Sprite sprite in loadedSprites) if (sprite != null) Destroy(sprite);
-            foreach (Texture2D texture in loadedTextures) if (texture != null) Destroy(texture);
-            loadedSprites.Clear();
-            loadedTextures.Clear();
-            foreach (PdfPageAsset asset in pdfPageCache.Values)
+            foreach (PageAsset asset in pageCache.Values)
             {
                 if (asset.Sprite != null) Destroy(asset.Sprite);
                 if (asset.Texture != null) Destroy(asset.Texture);
             }
-            pdfPageCache.Clear();
+            pageCache.Clear();
+            failedPages.Clear();
             if (pdfPlaceholder != null) Destroy(pdfPlaceholder);
             if (pdfPlaceholderTexture != null) Destroy(pdfPlaceholderTexture);
             pdfPlaceholder = null;
             pdfPlaceholderTexture = null;
+            comicArchive?.Dispose();
+            comicArchive = null;
             pdfBytes = null;
             epubPages = null;
             activeBookId = null;

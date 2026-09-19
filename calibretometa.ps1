@@ -44,6 +44,22 @@ function Convert-LanguageCode {
     return $Language
 }
 
+function ConvertFrom-HtmlSummary {
+    param([string]$Summary)
+
+    if ([string]::IsNullOrWhiteSpace($Summary)) {
+        return ""
+    }
+
+    $plainText = $Summary -replace '(?i)<br\s*/?>', "`n"
+    $plainText = $plainText -replace '(?i)</(?:p|div|li|h[1-6])\s*>', "`n"
+    $plainText = $plainText -replace '<[^>]+>', ''
+    $plainText = [System.Net.WebUtility]::HtmlDecode($plainText)
+    $plainText = $plainText -replace "[ `t]+", ' '
+    $plainText = $plainText -replace "(?:\r?\n\s*){3,}", "`n`n"
+    return $plainText.Trim()
+}
+
 Get-ChildItem -Path $Path -Filter "metadata.opf" -File -Recurse | ForEach-Object {
 
     $opfFile = $_
@@ -74,6 +90,7 @@ Get-ChildItem -Path $Path -Filter "metadata.opf" -File -Recurse | ForEach-Object
         $authorNode    = $metadata.SelectSingleNode("dc:creator[@opf:role='aut']", $ns)
         $publisherNode = $metadata.SelectSingleNode("dc:publisher", $ns)
         $languageNode  = $metadata.SelectSingleNode("dc:language", $ns)
+        $summaryNode   = $metadata.SelectSingleNode("dc:description", $ns)
 
         # Fall back to first creator if there isn't one explicitly marked "aut".
         if ($null -eq $authorNode) {
@@ -85,6 +102,17 @@ Get-ChildItem -Path $Path -Filter "metadata.opf" -File -Recurse | ForEach-Object
             "dc:identifier[@opf:scheme='uuid']",
             $ns
         )
+
+        $isbnNode = $metadata.SelectSingleNode(
+            "dc:identifier[translate(@opf:scheme, 'isbn', 'ISBN')='ISBN']",
+            $ns
+        )
+        if ($null -eq $isbnNode) {
+            $isbnNode = $metadata.SelectSingleNode(
+                "dc:identifier[contains(translate(@id, 'isbn', 'ISBN'), 'ISBN')]",
+                $ns
+            )
+        }
 
         # Calibre series metadata, if present.
         $seriesNode = $metadata.SelectSingleNode(
@@ -101,7 +129,9 @@ Get-ChildItem -Path $Path -Filter "metadata.opf" -File -Recurse | ForEach-Object
         $author    = Get-OpfValue $authorNode
         $publisher = Get-OpfValue $publisherNode
         $language  = Convert-LanguageCode (Get-OpfValue $languageNode)
+        $summary   = ConvertFrom-HtmlSummary (Get-OpfValue $summaryNode)
         $bookId    = Get-OpfValue $uuidNode
+        $isbn      = (Get-OpfValue $isbnNode) -replace '(?i)^urn:isbn:', ''
 
         if ([string]::IsNullOrWhiteSpace($bookId)) {
             $bookId = [guid]::NewGuid().ToString()
@@ -112,31 +142,31 @@ Get-ChildItem -Path $Path -Filter "metadata.opf" -File -Recurse | ForEach-Object
             $series = $seriesNode.GetAttribute("content")
         }
 
-        $volume = 1
+        $volume = ""
 
         if ($null -ne $seriesIndexNode) {
-            $parsedVolume = 0.0
-
-            if ([double]::TryParse(
-                $seriesIndexNode.GetAttribute("content"),
-                [System.Globalization.NumberStyles]::Any,
-                [System.Globalization.CultureInfo]::InvariantCulture,
-                [ref]$parsedVolume
-            )) {
-                $volume = $parsedVolume
-            }
+            $volume = $seriesIndexNode.GetAttribute("content").Trim()
         }
 
         $book = [ordered]@{
-            Version   = 1
+            Version   = 2
             BookID    = $bookId
             Title     = $title
             Series    = $series
-            Volume    = $volume
             Author    = $author
             Publisher = $publisher
             Language  = $language
             Type      = $Type
+            Summary   = $summary
+        }
+
+        # Volume is optional display metadata, not a runtime identifier. Only add
+        # it when Calibre actually supplies a series index.
+        if (-not [string]::IsNullOrWhiteSpace($volume)) {
+            $book["Volume"] = $volume
+        }
+        if (-not [string]::IsNullOrWhiteSpace($isbn)) {
+            $book["ISBN"] = $isbn.Trim()
         }
 
         $book |

@@ -110,6 +110,7 @@ namespace BR_BookSystem
         /// <summary>Original prefab transforms retained for idempotent visual updates.</summary>
         private sealed class Baseline
         {
+            internal Quaternion VisualsRotation;
             internal Vector3 BodyScale;
             internal Vector3 CoverScale;
             internal Vector3 CoverPosition;
@@ -145,6 +146,7 @@ namespace BR_BookSystem
             }
             ApplyShape(visual, book, coverAspect);
             RuntimeBookSpine.Apply(visual, book);
+            RuntimeBookBack.Apply(visual, book);
         }
 
         internal static void ApplyTexture(Renderer renderer, Texture2D texture)
@@ -182,6 +184,7 @@ namespace BR_BookSystem
                 : DefaultCoverAspect;
             ApplyShape(visual, book, aspect);
             RuntimeBookSpine.Apply(visual, book);
+            RuntimeBookBack.Apply(visual, book);
         }
 
         private static void ApplyShape(GameObject visual, BookData book, float coverAspect)
@@ -191,6 +194,7 @@ namespace BR_BookSystem
             Transform cover = Find(visual.transform, "Cover");
             Transform back = Find(visual.transform, "Back");
             Transform spine = Find(visual.transform, "Spine");
+            Transform visuals = Find(visual.transform, "BookVisuals");
             if (body == null) return;
             BoxCollider collider = visual.GetComponent<BoxCollider>();
 
@@ -199,6 +203,7 @@ namespace BR_BookSystem
             {
                 baseline = new Baseline
                 {
+                    VisualsRotation = visuals != null ? visuals.localRotation : Quaternion.identity,
                     BodyScale = body.localScale,
                     CoverScale = cover != null ? cover.localScale : Vector3.one,
                     CoverPosition = cover != null ? cover.localPosition : Vector3.zero,
@@ -210,6 +215,18 @@ namespace BR_BookSystem
                     ColliderCenter = collider != null ? collider.center : Vector3.zero
                 };
                 Baselines[id] = baseline;
+            }
+
+            bool rightBound = IsRightBound(book);
+            bool shelfVisual = visual.GetComponent<ShelfBookItem>() != null;
+            if (visuals != null)
+            {
+                // Shelf Manga presents its right-side binding toward the room.
+                // From left to right this leaves front cover, spine, then back/summary.
+                // The shelf root/pivot and saved slot never move.
+                visuals.localRotation = shelfVisual && rightBound
+                    ? baseline.VisualsRotation * Quaternion.Euler(0f, 180f, 0f)
+                    : baseline.VisualsRotation;
             }
 
             float thickness = ThicknessFor(book.BookType);
@@ -237,8 +254,11 @@ namespace BR_BookSystem
                 Vector3 spineScale = baseline.SpineScale;
                 spineScale.z *= thickness;
                 spine.localScale = spineScale;
+                float spineX = rightBound
+                    ? Mathf.Abs(baseline.SpinePosition.x)
+                    : baseline.SpinePosition.x;
                 spine.localPosition = new Vector3(
-                    baseline.SpinePosition.x * widthScale,
+                    spineX * widthScale,
                     baseline.SpinePosition.y,
                     baseline.SpinePosition.z);
             }
@@ -253,7 +273,6 @@ namespace BR_BookSystem
                 float placedThickness = fullThickness * thickness;
                 float anchoredCenter = fixedBottom + placedThickness * 0.5f;
 
-                Transform visuals = Find(visual.transform, "BookVisuals");
                 if (visuals != null)
                     visuals.localPosition = new Vector3(0.00186443f, anchoredCenter, -0.00131416f);
 
@@ -295,6 +314,9 @@ namespace BR_BookSystem
                 _ => 1.0f
             };
         }
+
+        internal static bool IsRightBound(BookData book) =>
+            string.Equals(book?.BookType?.Trim(), "Manga", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -333,17 +355,18 @@ namespace BR_BookSystem
 
             RectTransform rect = label.rectTransform;
             float thickness = 0.0328f * ThicknessScale(book.BookType);
+            bool rightBound = BookVisual.IsRightBound(book);
             // The label is a sibling of Spine, so follow the reshaped spine's
             // actual position instead of the original portrait-only X value.
             // Move it just beyond the outside face to avoid z-fighting.
             rect.localPosition = new Vector3(
-                spine.localPosition.x - Mathf.Abs(spine.localScale.x) * 0.625f,
+                spine.localPosition.x + (rightBound ? 1f : -1f) * Mathf.Abs(spine.localScale.x) * 0.625f,
                 spine.localPosition.y,
                 spine.localPosition.z);
             // BOXROOM's stock spine labels read from the top of the case down.
-            // Face the printed side of the spine. The previous -90 Y showed
-            // TextMeshPro from behind, mirroring every glyph.
-            rect.localRotation = Quaternion.Euler(0f, 90f, -90f);
+            // Face the outside edge of the binding. Manga uses the opposite
+            // edge, so its label must face +X instead of being seen from behind.
+            rect.localRotation = Quaternion.Euler(0f, rightBound ? -90f : 90f, -90f);
             rect.localScale = Vector3.one;
             rect.sizeDelta = new Vector2(0.158f, Mathf.Max(0.007f, thickness * 0.78f));
 
@@ -410,6 +433,175 @@ namespace BR_BookSystem
     }
 
     /// <summary>
+    /// Typesets the metadata summary directly onto the physical back cover. The
+    /// label follows the reshaped back quad, so portrait and landscape books keep
+    /// the same proportional margins without needing another authored prefab.
+    /// </summary>
+    internal static class RuntimeBookBack
+    {
+        private const string SummaryLabelName = "RuntimeBookBackSummary";
+        private const string CreditLabelName = "RuntimeBookBackCredit";
+        private const string IsbnLabelName = "RuntimeBookBackIsbn";
+        private static TMP_FontAsset cachedFont;
+        private static Material cachedMaterial;
+        private static bool triedSystemSerif;
+
+        internal static void Apply(GameObject physicalBook, BookData book)
+        {
+            if (physicalBook == null || book == null) return;
+            Transform back = BookVisual.Find(physicalBook.transform, "Back");
+            if (back == null || back.parent == null) return;
+
+            Transform existing = back.parent.Find(SummaryLabelName);
+            if (string.IsNullOrWhiteSpace(book.Summary))
+            {
+                if (existing != null) existing.gameObject.SetActive(false);
+                Transform existingCredit = back.parent.Find(CreditLabelName);
+                if (existingCredit != null) existingCredit.gameObject.SetActive(false);
+                Transform existingIsbn = back.parent.Find(IsbnLabelName);
+                if (existingIsbn != null) existingIsbn.gameObject.SetActive(false);
+                return;
+            }
+
+            if (!TryGetBookFont()) return;
+
+            float width = Mathf.Abs(back.localScale.x);
+            float height = Mathf.Abs(back.localScale.y);
+            TextMeshPro summary = GetOrCreateLabel(back, SummaryLabelName);
+            Place(summary.rectTransform, back, height * 0.08f, width * 0.82f, height * 0.66f);
+            Configure(summary);
+            summary.text = book.Summary.Trim();
+            summary.alignment = TextAlignmentOptions.TopLeft;
+            summary.fontSizeMin = 0.040f;
+            summary.fontSizeMax = 0.062f;
+            summary.lineSpacing = 5f;
+            summary.ForceMeshUpdate(true, true);
+
+            string credit = string.Join("\n", new[] { book.Author, book.Publisher }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim()));
+            TextMeshPro credits = GetOrCreateLabel(back, CreditLabelName);
+            if (string.IsNullOrWhiteSpace(credit))
+            {
+                credits.gameObject.SetActive(false);
+            }
+            else
+            {
+                Place(credits.rectTransform, back, height * -0.36f, width * 0.82f, height * 0.10f);
+                Configure(credits);
+                credits.text = credit;
+                credits.alignment = TextAlignmentOptions.Bottom;
+                credits.fontSizeMin = 0.028f;
+                credits.fontSizeMax = 0.040f;
+                credits.lineSpacing = 2f;
+                credits.ForceMeshUpdate(true, true);
+            }
+
+            TextMeshPro isbn = GetOrCreateLabel(back, IsbnLabelName);
+            if (string.IsNullOrWhiteSpace(book.Isbn))
+            {
+                isbn.gameObject.SetActive(false);
+                return;
+            }
+
+            Place(isbn.rectTransform, back, height * -0.46f, width * 0.82f, height * 0.055f);
+            Configure(isbn);
+            isbn.text = $"ISBN {book.Isbn.Trim()}";
+            isbn.alignment = TextAlignmentOptions.Bottom;
+            isbn.fontSizeMin = 0.024f;
+            isbn.fontSizeMax = 0.032f;
+            isbn.ForceMeshUpdate(true, true);
+        }
+
+        private static TextMeshPro GetOrCreateLabel(Transform back, string name)
+        {
+            Transform existing = back.parent.Find(name);
+            TextMeshPro label;
+            if (existing == null)
+            {
+                GameObject labelObject = new GameObject(name, typeof(RectTransform));
+                labelObject.layer = back.gameObject.layer;
+                labelObject.transform.SetParent(back.parent, false);
+                label = labelObject.AddComponent<TextMeshPro>();
+            }
+            else
+            {
+                existing.gameObject.SetActive(true);
+                label = existing.GetComponent<TextMeshPro>();
+                if (label == null) label = existing.gameObject.AddComponent<TextMeshPro>();
+            }
+            return label;
+        }
+
+        private static void Place(
+            RectTransform rect,
+            Transform back,
+            float yOffset,
+            float width,
+            float height,
+            float xOffset = 0f)
+        {
+            rect.localPosition = new Vector3(
+                back.localPosition.x + xOffset,
+                back.localPosition.y + yOffset,
+                back.localPosition.z + 0.0002f);
+            // TextMeshPro's printed face points toward -Z. Rotate it to face the
+            // outside (+Z) face of the back cover.
+            rect.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            rect.localScale = Vector3.one;
+            rect.sizeDelta = new Vector2(width, height);
+        }
+
+        private static void Configure(TextMeshPro label)
+        {
+            label.font = cachedFont;
+            label.fontSharedMaterial = cachedMaterial;
+            label.richText = false;
+            label.textWrappingMode = TextWrappingModes.Normal;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            label.enableAutoSizing = true;
+            label.color = new Color(0.94f, 0.92f, 0.86f, 1f);
+            label.raycastTarget = false;
+        }
+
+        private static bool TryGetBookFont()
+        {
+            if (cachedFont != null && cachedMaterial != null) return true;
+
+            if (!triedSystemSerif)
+            {
+                triedSystemSerif = true;
+                foreach (string fontName in new[] { "Georgia", "Times New Roman", "Liberation Serif", "DejaVu Serif" })
+                {
+                    Font systemFont = Font.CreateDynamicFontFromOSFont(fontName, 48);
+                    if (systemFont == null) continue;
+                    TMP_FontAsset bookFont = TMP_FontAsset.CreateFontAsset(systemFont);
+                    if (bookFont == null || bookFont.material == null) continue;
+                    bookFont.name = $"BR-BookSystem {fontName}";
+                    cachedFont = bookFont;
+                    cachedMaterial = bookFont.material;
+                    return true;
+                }
+            }
+
+            // Platforms without one of the common serif faces still get readable
+            // text using a font already loaded by BOXROOM.
+            TMP_Text template = Resources.FindObjectsOfTypeAll<TextMeshProUGUI>()
+                .FirstOrDefault(text => text != null && text.font != null && text.fontSharedMaterial != null);
+            template ??= Resources.FindObjectsOfTypeAll<TMP_Text>()
+                .FirstOrDefault(text => text != null && text.font != null && text.fontSharedMaterial != null &&
+                                        !text.name.Equals(SummaryLabelName, StringComparison.Ordinal) &&
+                                        !text.name.Equals(CreditLabelName, StringComparison.Ordinal) &&
+                                        !text.name.Equals(IsbnLabelName, StringComparison.Ordinal));
+            if (template == null) return false;
+
+            cachedFont = template.font;
+            cachedMaterial = template.fontSharedMaterial;
+            return cachedFont != null && cachedMaterial != null;
+        }
+    }
+
+    /// <summary>
     /// Temporarily removes BOXROOM's native inspect overlay while a book reader is
     /// active. The same state owner is shared by PageFlip and the fallback reader
     /// so metadata, colour controls, and action prompts cannot remain underneath.
@@ -449,10 +641,7 @@ namespace BR_BookSystem
         }
     }
 
-    /// <summary>
-    /// Reapplies visuals after RoomState reconstruction. Loaded transforms include
-    /// placement scale, so this is intentionally separate from the new-book path.
-    /// </summary>
+    /// <summary>Reapplies visuals after RoomState reconstructs a loose book.</summary>
     [HarmonyPatch(typeof(PlacedBookProp), nameof(PlacedBookProp.PopulateFromLoad))]
     internal static class LoadedPlacedBookVisualPatch
     {
@@ -465,20 +654,7 @@ namespace BR_BookSystem
                 return;
             }
 
-            // Loaded books bypass ApplyData, so restore the exact same cover,
-            // type thickness, bottom anchor, collider and spine configuration.
             BookVisual.Apply(__instance.gameObject, book);
-        }
-    }
-
-    /// <summary>Updates shelf thickness and spine after a reusable slot changes book.</summary>
-    [HarmonyPatch(typeof(ShelfBookItem), nameof(ShelfBookItem.SetItem), new[] { typeof(SteamShelf.Media.IMediaItem), typeof(bool) })]
-    internal static class ShelfBookThicknessPatch
-    {
-        private static void Postfix(ShelfBookItem __instance, SteamShelf.Media.IMediaItem item)
-        {
-            if (item is not BookData book) return;
-            BookVisual.ApplyShelf(__instance.gameObject, book);
         }
     }
 
@@ -802,7 +978,7 @@ namespace BR_BookSystem
             if (GameText.GetValue(menu) is TextMeshProUGUI info)
             {
                 info.text = $"Title: {book.Title}\nAuthor: {Value(book.Author)}\nSeries: {Value(book.Series)}" +
-                            (book.Volume > 0 ? $"\nVolume: {book.Volume}" : string.Empty) +
+                            (!string.IsNullOrWhiteSpace(book.Volume) ? $"\nVolume: {book.Volume}" : string.Empty) +
                             $"\nPublisher: {Value(book.Publisher)}\nLanguage: {Value(book.Language)}\nType: {Value(book.BookType)}";
             }
 
@@ -1020,7 +1196,8 @@ namespace BR_BookSystem
     /// </summary>
     public sealed class BookInspectRuntime : MonoBehaviour
     {
-        private readonly List<byte[]> pages = new();
+        private ComicArchiveReader fallbackArchive;
+        private int fallbackPageCount;
         private Texture2D pageTexture;
         private BookData book;
         private int pageIndex;
@@ -1051,11 +1228,17 @@ namespace BR_BookSystem
             }
 
             MelonLogger.Warning("PageFlip reader was unavailable; using the temporary image reader.");
-            pages.Clear();
             string archivePath = ComicArchive.Find(selected.FolderPath);
             if (archivePath == null) return;
-            foreach (ComicPage page in ComicArchive.ReadPages(archivePath)) pages.Add(page.Bytes);
-            if (pages.Count == 0) return;
+            fallbackArchive?.Dispose();
+            fallbackArchive = ComicArchive.Open(archivePath);
+            fallbackPageCount = fallbackArchive.Count;
+            if (fallbackPageCount == 0)
+            {
+                fallbackArchive.Dispose();
+                fallbackArchive = null;
+                return;
+            }
             book = selected;
             SetPage(0);
             BookInspectUiVisibility.Suspend();
@@ -1116,8 +1299,8 @@ namespace BR_BookSystem
             GUILayout.BeginArea(new Rect(Screen.width * .10f, Screen.height - 68, Screen.width * .80f, 58));
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Previous") && pageIndex > 0) SetPage(pageIndex - 1);
-            GUILayout.Label($"{book.Title}   {pageIndex + 1} / {pages.Count}", GUI.skin.box, GUILayout.ExpandWidth(true));
-            if (GUILayout.Button("Next") && pageIndex + 1 < pages.Count) SetPage(pageIndex + 1);
+            GUILayout.Label($"{book.Title}   {pageIndex + 1} / {fallbackPageCount}", GUI.skin.box, GUILayout.ExpandWidth(true));
+            if (GUILayout.Button("Next") && pageIndex + 1 < fallbackPageCount) SetPage(pageIndex + 1);
             if (GUILayout.Button("Close")) Close();
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
@@ -1150,21 +1333,31 @@ namespace BR_BookSystem
 
         private void SetPage(int index)
         {
-            pageIndex = Mathf.Clamp(index, 0, pages.Count - 1);
+            if (fallbackArchive == null || fallbackPageCount <= 0) return;
+            pageIndex = Mathf.Clamp(index, 0, fallbackPageCount - 1);
             if (pageTexture != null) Destroy(pageTexture);
             pageTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            ImageConversion.LoadImage(pageTexture, pages[pageIndex], false);
+            ComicPage page = fallbackArchive.ReadPage(pageIndex);
+            ImageConversion.LoadImage(pageTexture, page.Bytes, false);
         }
 
         private void Close()
         {
             book = null;
-            pages.Clear();
+            fallbackArchive?.Dispose();
+            fallbackArchive = null;
+            fallbackPageCount = 0;
             if (pageTexture != null) Destroy(pageTexture);
             pageTexture = null;
             BookInspectUiVisibility.Restore();
             PlayerInteractionTool tool = UnityEngine.Object.FindFirstObjectByType<PlayerInteractionTool>();
             BookHandVisual.ShowCurrent(tool);
+        }
+
+        private void OnDestroy()
+        {
+            fallbackArchive?.Dispose();
+            fallbackArchive = null;
         }
 
         private static bool IsImage(string path) => new[] { ".jpg", ".jpeg", ".png", ".webp" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
