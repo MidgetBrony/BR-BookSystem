@@ -462,7 +462,6 @@
 
 	<ItemGroup>
 		<Compile Include="Core.cs" />
-		<Compile Include="LegacyBookMediaTypeMigration.cs" />
 		<Compile Include="BookEnhancements.cs" />
 		<Compile Include="PageFlipReaderController.cs" />
 		<Compile Include="EpubPageRenderer.cs" />

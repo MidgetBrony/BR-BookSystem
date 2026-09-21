@@ -218,18 +218,10 @@ art are loaded again from the configured library.
 Keep a book's folder and `BookID` available after placing it. If the library is
 missing or a `BookID` changes, the saved object cannot restore its book data.
 
-### One-time media type migration
-
-This pre-Movies release contains a temporary migration for rooms saved when
-Books used media type `2`. Load each existing room and save it once. Recognized
-loose and shelved Books retain their `BookID`, position, rotation, scale, shelf
-slot, and other saved state while their media type is changed to `1002`.
-
-The MelonLoader log reports the number of loose and shelf references migrated,
-plus any unrecognized type-`2` shelf references left unchanged. Keep the
-configured Book library available during migration so shelf `BookID` values can
-be verified. This code does not register type `2` as Books and is intended to be
-removed before BOXROOM assigns type `2` to native Movies.
+BR-BookSystem uses custom media type `1002`. It no longer scans for or rewrites
+room references saved with the former type `2`. Existing libraries, metadata,
+BookIDs, reading progress, and rooms already saved with type `1002` remain
+compatible; type-`2` room references are left untouched.
 
 ## Troubleshooting
 
