@@ -44,8 +44,8 @@ those two required mods separately.
 
 1. Close BOXROOM.
 2. Download the versioned `BR-BookSystem-*.zip` from the desired GitHub release.
-   BoxMate users can select **Beta** for numbered prereleases such as
-   `2.1.0-beta.1`; **Stable** continues to use the latest stable release.
+   BoxMate uses the latest stable release by default; its optional early-release
+   channels can select compatible prereleases when available.
 3. Extract the ZIP into the BOXROOM game directory.
 4. Confirm that the included files landed in `BOXROOM/Mods`.
 5. Remove or disable the older `Boxroom_Books.dll` if it is installed.
