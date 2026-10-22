@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.1.0", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.1.1", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 
@@ -60,8 +60,15 @@ namespace BR_BookSystem
                         (BookMetadataSettings.PreferCalibreOpf ? " (Calibre OPF preferred)" : string.Empty)
                 }
             });
+            // Library controls now live in Media > Books. Keep this section for
+            // metadata/reader callbacks and host it on the same media page.
+            ModsPanel.ModsPanelApi.RegisterSection("Rusty.BR-BookSystem", "BR-BookSystem", 100).Clear();
             BookMetadataSettings.Initialize();
             EpubReaderSettings.Initialize();
+            ModsPanel.ModSection settings = ModsPanel.ModsPanelApi.RegisterSection("Rusty.BR-BookSystem", "BR-BookSystem", 100);
+            settings.VisibleInModSettings = false;
+            if (MediaApi.TryGet(Boxroom_Books.BookMedia.Type, out MediaTypeDefinition books))
+                books.LibraryFolder.SettingsSection = settings;
         }
 
         public override void OnDeinitializeMelon()
