@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 root = Path(__file__).resolve().parent.parent
-version = "2.1.0"
+version = "2.1.1"
 output = root / "bin/Release/netstandard2.1"
 pdfium = (
     Path.home()
