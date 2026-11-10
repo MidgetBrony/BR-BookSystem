@@ -91,6 +91,15 @@ namespace Boxroom_Books
                     return false;
                 }
 
+                // AssetBundle shaders are sensitive to the exact Unity/URP patch
+                // version that produced them. Rebind ordinary Lit materials to
+                // BOXROOM's own loaded shader so a bundle authored in a newer
+                // compatible editor still participates in the game's lighting.
+                NormalizeLitMaterials(bookPrefab);
+                NormalizeLitMaterials(bookDisplayPrefab);
+                NormalizeLitMaterials(FindPrefab(bundle, "MediaBoxShelf"));
+                NormalizeLitMaterials(FindPrefab(bundle, "BookReader"));
+
                 return true;
             }
             catch (Exception ex)
@@ -268,6 +277,67 @@ namespace Boxroom_Books
             foreach (string path in bundle.GetAllAssetNames())
                 if (path.EndsWith("/" + assetName + ".png", StringComparison.OrdinalIgnoreCase))
                     return bundle.LoadAsset<Sprite>(path);
+            return null;
+        }
+
+        private static void NormalizeLitMaterials(GameObject prefab)
+        {
+            if (prefab == null) return;
+
+            const string LitShaderName = "Universal Render Pipeline/Lit";
+            Shader runtimeLitShader = null;
+
+            foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] materials = renderer.sharedMaterials;
+                bool changed = false;
+
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    Material source = materials[i];
+                    if (source == null || source.shader == null ||
+                        !string.Equals(source.shader.name, LitShaderName, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    runtimeLitShader ??= FindRuntimeShader(LitShaderName, source.shader);
+                    if (runtimeLitShader == null)
+                    {
+                        MelonLogger.Warning(
+                            $"Could not find BOXROOM's non-bundled '{LitShaderName}' shader.");
+                        return;
+                    }
+
+                    Material replacement = new Material(runtimeLitShader)
+                    {
+                        name = source.name
+                    };
+                    replacement.CopyPropertiesFromMaterial(source);
+                    materials[i] = replacement;
+                    changed = true;
+                }
+
+                if (changed)
+                    renderer.sharedMaterials = materials;
+            }
+        }
+
+        private static Shader FindRuntimeShader(string shaderName, Shader bundledShader)
+        {
+            Shader namedShader = Shader.Find(shaderName);
+            if (namedShader != null && namedShader != bundledShader)
+                return namedShader;
+
+            foreach (Shader candidate in Resources.FindObjectsOfTypeAll<Shader>())
+            {
+                if (candidate != null && candidate != bundledShader &&
+                    string.Equals(candidate.name, shaderName, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
             return null;
         }
 
