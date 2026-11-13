@@ -217,9 +217,9 @@ keyboard shortcuts retain their semantic meaning while PageFlip uses the
 opposite physical turn direction.
 
 Books whose metadata has `"ReadingDirection": "TopToBottom"` show page N above
-page N+1. Next scrolls the current pair upward while the following pair enters
-from below; Previous reverses that animation. This is intended for wide art-book
-or presentation pages that become too small when arranged side-by-side.
+page N+1. Next folds the lower page upward across the centre spine; Previous
+folds the upper page downward. This is intended for wide art-book or presentation
+pages that become too small when arranged side-by-side.
 
 ## Saving and restoring
 
