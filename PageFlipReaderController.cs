@@ -4,6 +4,7 @@ using PDFtoImage;
 using SkiaSharp;
 using SteamShelf.Input;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -38,7 +39,22 @@ namespace BR_BookSystem
         private Sprite pdfPlaceholder;
         private string activeBookId;
         private bool rightToLeftReading;
+        private bool topToBottomReading;
         private int sourcePageCount;
+        private Image verticalTopPage;
+        private Image verticalBottomPage;
+        private Image verticalIncomingTopPage;
+        private Image verticalIncomingBottomPage;
+        private RectMask2D verticalMask;
+        private bool createdVerticalMask;
+        private Coroutine verticalTurnCoroutine;
+
+        private enum ReaderDirection
+        {
+            LeftToRight,
+            RightToLeft,
+            TopToBottom
+        }
 
         private sealed class PageAsset
         {
@@ -103,7 +119,9 @@ namespace BR_BookSystem
                 pageFlipBook = bookRoot.gameObject.AddComponent<Book>();
                 flip = bookRoot.gameObject.AddComponent<AutoFlip>();
                 WireBook();
-                rightToLeftReading = string.Equals(data.BookType, "Manga", StringComparison.OrdinalIgnoreCase);
+                ReaderDirection direction = GetReadingDirection(data);
+                rightToLeftReading = direction == ReaderDirection.RightToLeft;
+                topToBottomReading = direction == ReaderDirection.TopToBottom;
                 pageFlipBook.background = BookAssetBundle.LoadSprite("transparent");
                 pageFlipBook.bookPages = ReadPages(data);
                 if (pageFlipBook.bookPages.Length == 0) throw new InvalidOperationException("The CBZ contains no readable images.");
@@ -118,14 +136,23 @@ namespace BR_BookSystem
 
                 nextButton.onClick.RemoveAllListeners();
                 previousButton.onClick.RemoveAllListeners();
-                if (HasLazyPages)
+                if (topToBottomReading)
                 {
-                    nextButton.onClick.AddListener(PrepareNextLazyPages);
-                    previousButton.onClick.AddListener(PreparePreviousLazyPages);
+                    ConfigureTopToBottomReader();
+                    nextButton.onClick.AddListener(NextVerticalSpread);
+                    previousButton.onClick.AddListener(PreviousVerticalSpread);
                 }
-                pageFlipBook.OnFlip.AddListener(HandlePageFlip);
-                nextButton.onClick.AddListener(rightToLeftReading ? flip.FlipLeftPage : flip.FlipRightPage);
-                previousButton.onClick.AddListener(rightToLeftReading ? flip.FlipRightPage : flip.FlipLeftPage);
+                else
+                {
+                    if (HasLazyPages)
+                    {
+                        nextButton.onClick.AddListener(PrepareNextLazyPages);
+                        previousButton.onClick.AddListener(PreparePreviousLazyPages);
+                    }
+                    pageFlipBook.OnFlip.AddListener(HandlePageFlip);
+                    nextButton.onClick.AddListener(rightToLeftReading ? flip.FlipLeftPage : flip.FlipRightPage);
+                    previousButton.onClick.AddListener(rightToLeftReading ? flip.FlipRightPage : flip.FlipLeftPage);
+                }
 
                 canvas.enabled = true;
                 IsOpen = true;
@@ -140,6 +167,30 @@ namespace BR_BookSystem
                 Close();
                 return false;
             }
+        }
+
+        private static ReaderDirection GetReadingDirection(BookData data)
+        {
+            string value = data?.ReadingDirection?.Trim();
+            if (!string.IsNullOrEmpty(value))
+            {
+                string normalized = value.Replace("-", "").Replace("_", "").Replace(" ", "");
+                if (normalized.Equals("TopToBottom", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("Vertical", StringComparison.OrdinalIgnoreCase))
+                    return ReaderDirection.TopToBottom;
+                if (normalized.Equals("RightToLeft", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("RTL", StringComparison.OrdinalIgnoreCase))
+                    return ReaderDirection.RightToLeft;
+                if (normalized.Equals("LeftToRight", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("LTR", StringComparison.OrdinalIgnoreCase))
+                    return ReaderDirection.LeftToRight;
+
+                MelonLogger.Warning($"Unknown ReadingDirection '{value}'; using the default for this book type.");
+            }
+
+            return string.Equals(data?.BookType, "Manga", StringComparison.OrdinalIgnoreCase)
+                ? ReaderDirection.RightToLeft
+                : ReaderDirection.LeftToRight;
         }
 
         private void WireBook()
@@ -265,6 +316,137 @@ namespace BR_BookSystem
                 RenderLazyWindow(pageFlipBook.currentPage);
                 TrimPageCache(pageFlipBook.currentPage);
             }
+        }
+
+        private void ConfigureTopToBottomReader()
+        {
+            // The imported PageFlip component only curls pages horizontally. In
+            // vertical mode the same two logical pages are shown as a clean stack
+            // and the existing Previous/Next controls advance between spreads.
+            pageFlipBook.enabled = false;
+            flip.enabled = false;
+            SetHorizontalPageVisuals(false);
+
+            verticalMask = pageFlipBook.BookPanel.GetComponent<RectMask2D>();
+            if (verticalMask == null)
+            {
+                verticalMask = pageFlipBook.BookPanel.gameObject.AddComponent<RectMask2D>();
+                createdVerticalMask = true;
+            }
+
+            verticalTopPage = CreateVerticalPage("TopPage", 0.5f, 1f, true);
+            verticalBottomPage = CreateVerticalPage("BottomPage", 0f, 0.5f, false);
+            verticalIncomingTopPage = CreateVerticalPage("IncomingTopPage", -0.5f, 0f, true);
+            verticalIncomingBottomPage = CreateVerticalPage("IncomingBottomPage", -1f, -0.5f, false);
+            verticalIncomingTopPage.gameObject.SetActive(false);
+            verticalIncomingBottomPage.gameObject.SetActive(false);
+            RefreshVerticalPages();
+        }
+
+        private Image CreateVerticalPage(string name, float anchorBottom, float anchorTop, bool topPage)
+        {
+            GameObject page = new(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            page.transform.SetParent(pageFlipBook.BookPanel, false);
+            Image image = page.GetComponent<Image>();
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            PositionVerticalPage(image, anchorBottom, anchorTop, topPage);
+            return image;
+        }
+
+        private static void PositionVerticalPage(Image image, float anchorBottom, float anchorTop, bool topPage)
+        {
+            if (image == null) return;
+            RectTransform rect = image.rectTransform;
+            rect.anchorMin = new Vector2(0f, anchorBottom);
+            rect.anchorMax = new Vector2(1f, anchorTop);
+            rect.offsetMin = new Vector2(0f, topPage ? 4f : 0f);
+            rect.offsetMax = new Vector2(0f, topPage ? 0f : -4f);
+        }
+
+        private void NextVerticalSpread() => TurnVerticalSpread(2);
+
+        private void PreviousVerticalSpread() => TurnVerticalSpread(-2);
+
+        private void TurnVerticalSpread(int delta)
+        {
+            if (verticalTurnCoroutine != null || pageFlipBook?.bookPages == null || pageFlipBook.bookPages.Length == 0) return;
+            int lastSpread = ((pageFlipBook.bookPages.Length - 1) / 2) * 2;
+            int target = Mathf.Clamp(pageFlipBook.currentPage + delta, 0, lastSpread);
+            if (target == pageFlipBook.currentPage) return;
+
+            if (HasLazyPages) RenderLazyWindow(target);
+            verticalTurnCoroutine = StartCoroutine(AnimateVerticalSpread(target, delta > 0));
+        }
+
+        private IEnumerator AnimateVerticalSpread(int target, bool forward)
+        {
+            nextButton.interactable = false;
+            previousButton.interactable = false;
+
+            verticalIncomingTopPage.sprite = pageFlipBook.bookPages[target];
+            verticalIncomingBottomPage.sprite = target + 1 < pageFlipBook.bookPages.Length
+                ? pageFlipBook.bookPages[target + 1]
+                : pageFlipBook.background;
+            verticalIncomingTopPage.gameObject.SetActive(true);
+            verticalIncomingBottomPage.gameObject.SetActive(true);
+
+            float direction = forward ? 1f : -1f;
+            float incomingTopBottom = forward ? -0.5f : 1.5f;
+            float incomingBottomBottom = forward ? -1f : 1f;
+            const float duration = 0.32f;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float amount = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+                float currentOffset = direction * amount;
+                float incomingOffset = forward ? amount : -amount;
+                PositionVerticalPage(verticalTopPage, 0.5f + currentOffset, 1f + currentOffset, true);
+                PositionVerticalPage(verticalBottomPage, currentOffset, 0.5f + currentOffset, false);
+                PositionVerticalPage(verticalIncomingTopPage, incomingTopBottom + incomingOffset, incomingTopBottom + 0.5f + incomingOffset, true);
+                PositionVerticalPage(verticalIncomingBottomPage, incomingBottomBottom + incomingOffset, incomingBottomBottom + 0.5f + incomingOffset, false);
+                yield return null;
+            }
+
+            pageFlipBook.currentPage = target;
+            RefreshVerticalPages();
+            PositionVerticalPage(verticalTopPage, 0.5f, 1f, true);
+            PositionVerticalPage(verticalBottomPage, 0f, 0.5f, false);
+            verticalIncomingTopPage.gameObject.SetActive(false);
+            verticalIncomingBottomPage.gameObject.SetActive(false);
+            ReadingProgress.Save(activeBookId, target, pageFlipBook.bookPages.Length, false);
+            if (HasLazyPages) TrimPageCache(target);
+
+            nextButton.interactable = true;
+            previousButton.interactable = true;
+            verticalTurnCoroutine = null;
+        }
+
+        private void RefreshVerticalPages()
+        {
+            if (pageFlipBook?.bookPages == null) return;
+            int page = pageFlipBook.currentPage;
+            if (verticalTopPage != null)
+                verticalTopPage.sprite = page < pageFlipBook.bookPages.Length
+                    ? pageFlipBook.bookPages[page]
+                    : pageFlipBook.background;
+            if (verticalBottomPage != null)
+                verticalBottomPage.sprite = page + 1 < pageFlipBook.bookPages.Length
+                    ? pageFlipBook.bookPages[page + 1]
+                    : pageFlipBook.background;
+        }
+
+        private void SetHorizontalPageVisuals(bool active)
+        {
+            if (pageFlipBook == null) return;
+            pageFlipBook.LeftNext.gameObject.SetActive(active);
+            pageFlipBook.RightNext.gameObject.SetActive(active);
+            pageFlipBook.ClippingPlane.gameObject.SetActive(active);
+            pageFlipBook.NextPageClip.gameObject.SetActive(active);
+            pageFlipBook.Left.gameObject.SetActive(false);
+            pageFlipBook.Right.gameObject.SetActive(false);
         }
 
         private void RenderLazyWindow(int centerPage)
@@ -448,7 +630,7 @@ namespace BR_BookSystem
             float availableHeight = canvasRect != null && canvasRect.rect.height > 0f
                 ? canvasRect.rect.height * 0.80f
                 : 864f;
-            float spreadAspect = pageAspect * 2f;
+            float spreadAspect = topToBottomReading ? pageAspect / 2f : pageAspect * 2f;
             float width = Mathf.Min(availableWidth, availableHeight * spreadAspect);
             float height = width / spreadAspect;
 
@@ -511,6 +693,22 @@ namespace BR_BookSystem
         {
             nextButton?.onClick.RemoveAllListeners();
             previousButton?.onClick.RemoveAllListeners();
+            if (verticalTurnCoroutine != null) StopCoroutine(verticalTurnCoroutine);
+            verticalTurnCoroutine = null;
+            if (nextButton != null) nextButton.interactable = true;
+            if (previousButton != null) previousButton.interactable = true;
+            if (topToBottomReading && pageFlipBook != null) SetHorizontalPageVisuals(true);
+            if (verticalTopPage != null) Destroy(verticalTopPage.gameObject);
+            if (verticalBottomPage != null) Destroy(verticalBottomPage.gameObject);
+            if (verticalIncomingTopPage != null) Destroy(verticalIncomingTopPage.gameObject);
+            if (verticalIncomingBottomPage != null) Destroy(verticalIncomingBottomPage.gameObject);
+            if (createdVerticalMask && verticalMask != null) Destroy(verticalMask);
+            verticalTopPage = null;
+            verticalBottomPage = null;
+            verticalIncomingTopPage = null;
+            verticalIncomingBottomPage = null;
+            verticalMask = null;
+            createdVerticalMask = false;
             if (flip != null) Destroy(flip);
             if (pageFlipBook != null) Destroy(pageFlipBook);
             flip = null;
@@ -532,6 +730,7 @@ namespace BR_BookSystem
             epubPages = null;
             activeBookId = null;
             rightToLeftReading = false;
+            topToBottomReading = false;
             sourcePageCount = 0;
         }
 

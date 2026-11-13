@@ -101,6 +101,7 @@ namespace Boxroom_Books
                     Isbn = meta.ISBN,
                     Language = meta.Language,
                     BookType = meta.Type,
+                    ReadingDirection = meta.ReadingDirection,
 
                     MetadataLoaded = true
                 };
@@ -158,6 +159,11 @@ namespace Boxroom_Books
                     // metadata) and controls thickness plus Manga reading direction.
                     if (!string.IsNullOrWhiteSpace(existing?.Type))
                         calibre.Type = existing.Type;
+
+                    // ReadingDirection is also BR-BookSystem behavior. Preserve
+                    // it when Calibre owns the descriptive metadata.
+                    if (!string.IsNullOrWhiteSpace(existing?.ReadingDirection))
+                        calibre.ReadingDirection = existing.ReadingDirection;
 
                     return calibre;
                 }

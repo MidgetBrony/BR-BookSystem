@@ -24,6 +24,7 @@ archive without stretching the artwork.
   "ISBN": "9781234567897",
   "Language": "en",
   "Type": "Comic",
+  "ReadingDirection": "TopToBottom",
   "Summary": "A concise description printed on the physical back cover."
 }
 ```
@@ -50,15 +51,21 @@ present; books without it continue using `meta.json`. Calibre subjects/tags such
 as `Manga`, `Comic`, `Graphic Novel`, and `Magazine` determine the physical/read
 type, with CBZ/CBR defaulting to `Comic` and other formats to `Book`.
 
-When both metadata files exist, BR-BookSystem deliberately preserves `BookID`
-and `Type` from `meta.json`. `BookID` is the stable identity stored by shelf and
-room saves, while `Type` controls physical thickness and Manga reading direction.
+When both metadata files exist, BR-BookSystem deliberately preserves `BookID`,
+`Type`, and `ReadingDirection` from `meta.json`. `BookID` is the stable identity
+stored by shelf and room saves, while `Type` controls physical thickness and
+supplies Manga's default reading direction.
 All descriptive fields still come from Calibre. A folder containing only OPF
 uses Calibre's UUID as its stable ID.
 
 Set `"Type": "Manga"` to make the physical book right-bound and enable
 right-to-left page order and page-turn direction. Other book types remain
 left-bound.
+
+Optional `ReadingDirection` accepts `LeftToRight`, `RightToLeft`, or
+`TopToBottom`. The top-to-bottom mode stacks two consecutive pages vertically
+and animates between page pairs. When the field is omitted, Manga remains
+right-to-left and all other types remain left-to-right.
 
 The book file can use any filename ending in `.cbz`, `.cbr`, `.pdf`, or
 `.epub`. CBZ and CBR are read through SharpCompress and PageFlip. CBR

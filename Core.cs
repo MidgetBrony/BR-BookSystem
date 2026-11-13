@@ -2,7 +2,7 @@ using MelonLoader;
 using UnityEngine;
 using BR_MediaAPI;
 
-[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.1.2", "Rusty", null)]
+[assembly: MelonInfo(typeof(BR_BookSystem.Core), "BR-BookSystem", "2.1.3", "Rusty", null)]
 [assembly: MelonGame("NestedLoop", "BOXROOM")]
 [assembly: MelonAdditionalDependencies("BR_MediaAPI")]
 

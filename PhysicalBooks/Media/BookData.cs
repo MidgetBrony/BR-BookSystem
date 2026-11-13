@@ -31,6 +31,8 @@ public sealed class BookData : IMediaItem
 
     public string BookType { get; internal set; } = "";
 
+    public string ReadingDirection { get; internal set; } = "";
+
     public string Volume { get; internal set; } = "";
 
     public string CoverArtPath { get; internal set; } = "";
@@ -118,4 +120,6 @@ public sealed class BookMetadata
     public string Language { get; set; } = "";
 
     public string Type { get; set; } = "";
+
+    public string ReadingDirection { get; set; } = "";
 }

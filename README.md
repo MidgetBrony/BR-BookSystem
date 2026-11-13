@@ -114,9 +114,10 @@ For a normal Calibre library, enable **Use Calibre metadata.opf when available**
 in the **Book Metadata** group. BR-BookSystem then reads Calibre's title,
 authors, description, publisher, language, identifiers, series, and series
 index directly. A book without `metadata.opf` still falls back to `meta.json`.
-When both files exist, the established `meta.json` `BookID` and custom `Type`
-are preserved so enabling OPF cannot detach books already referenced by room or
-shelf saves. A pure Calibre folder without `meta.json` uses Calibre's UUID.
+When both files exist, the established `meta.json` `BookID`, custom `Type`, and
+`ReadingDirection` are preserved so enabling OPF cannot detach books already
+referenced by room or shelf saves or change their reader behavior. A pure
+Calibre folder without `meta.json` uses Calibre's UUID.
 
 ## Book folder format
 
@@ -140,6 +141,7 @@ Example `meta.json`:
   "ISBN": "9781234567897",
   "Language": "en",
   "Type": "Comic",
+  "ReadingDirection": "TopToBottom",
   "Summary": "A concise description printed on the physical back cover."
 }
 ```
@@ -148,6 +150,11 @@ Example `meta.json`:
 optional series display metadata; it is a string so values such as `"1.5"` or
 `"Special"` are preserved. It is not used for book identity, ordering, saves,
 or reading progress. Version 1 files with numeric volumes remain compatible.
+`ReadingDirection` is optional. Use `"TopToBottom"` to stack two consecutive
+wide pages vertically, with an animated transition between pairs.
+`"LeftToRight"` and `"RightToLeft"` are also accepted as explicit overrides.
+Without the field, Manga remains right-to-left and every other type remains
+left-to-right, preserving existing libraries.
 `ISBN` is optional and appears in the lower-right back-cover footer. Direct OPF
 reading and `calibretometa.ps1` both import it when Calibre has an ISBN identifier.
 
@@ -208,6 +215,11 @@ through their pages right-to-left.
 Their Previous/Next buttons and
 keyboard shortcuts retain their semantic meaning while PageFlip uses the
 opposite physical turn direction.
+
+Books whose metadata has `"ReadingDirection": "TopToBottom"` show page N above
+page N+1. Next scrolls the current pair upward while the following pair enters
+from below; Previous reverses that animation. This is intended for wide art-book
+or presentation pages that become too small when arranged side-by-side.
 
 ## Saving and restoring
 
