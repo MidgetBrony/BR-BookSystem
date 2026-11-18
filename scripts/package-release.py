@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 root = Path(__file__).resolve().parent.parent
-version = "2.1.2"
+version = "2.1.6"
 output = root / "bin/Release/netstandard2.1"
 pdfium = (
     Path.home()
@@ -23,7 +23,6 @@ files = {
     output / "VersOne.Epub.dll": "Mods/VersOne.Epub.dll",
     output / "SharpCompress.dll": "Mods/SharpCompress.dll",
     output / "System.Text.Encoding.CodePages.dll": "Mods/System.Text.Encoding.CodePages.dll",
-    root.parent / "ModsPanel/bin/Release/netstandard2.1/ModsPanel.dll": "Mods/ModsPanel.dll",
     root / "UnityAssets/boxroomplus": "Mods/boxroomplus",
     pdfium: "BOXROOM_Data/Plugins/x86_64/pdfium.dll",
     root / "THIRD_PARTY_NOTICES.md": "Mods/BR-BookSystem-THIRD-PARTY-NOTICES.md",

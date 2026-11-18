@@ -33,7 +33,7 @@ The mod supports in-game CBZ, CBR, PDF, and EPUB reading.
 
 - BOXROOM with MelonLoader installed.
 - BR-MediaAPI 1.0.1 or newer.
-- ModsPanel 2.5.0 or newer.
+- ModsPanel 2.7.3 or newer.
 - The format-reader runtime files included in the release ZIP.
 
 BoxMate installs and updates BR-MediaAPI and ModsPanel automatically from the
@@ -59,7 +59,6 @@ BOXROOM/
 │   ├── BR_BookSystem.dll
 │   ├── PDFtoImage.dll
 │   ├── VersOne.Epub.dll
-│   ├── ModsPanel.dll
 │   ├── boxroomplus
 │   ├── SharpCompress.dll
 │   ├── System.Text.Encoding.CodePages.dll
@@ -359,5 +358,6 @@ paths are required.
 ## Third-party components
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for SharpCompress,
-System.Text.Encoding.CodePages, PDFtoImage/PDFium, VersOne.Epub, ModsPanel, and
-PageFlip attribution.
+System.Text.Encoding.CodePages, PDFtoImage/PDFium, VersOne.Epub, and PageFlip
+attribution. ModsPanel and BR-MediaAPI are installed separately through the
+dependencies declared in `manifest.json`.
