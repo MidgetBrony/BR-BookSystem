@@ -238,11 +238,13 @@ namespace Boxroom_Books
         public void LinkSaveState(PlaceableSaveState state)
         {
             saveState = state;
+            WriteSaveIdentity();
         }
 
         public void RefreshSaveStateReference(PlaceableSaveState newState)
         {
             saveState = newState;
+            WriteSaveIdentity();
         }
 
 
@@ -323,6 +325,19 @@ namespace Boxroom_Books
                 PlaceableMediaContainer.UnreserveMedia(reservedRef);
                 reservedRef = default;
             }
+        }
+
+        private void WriteSaveIdentity()
+        {
+            if (saveState == null || string.IsNullOrWhiteSpace(bookId))
+                return;
+
+            saveState.CustomData = JsonUtility.ToJson(
+                new MediaPropSaveData
+                {
+                    mediaType = (int)BookMedia.Type,
+                    mediaId = bookId
+                });
         }
 
         private static MediaRef ResolveMediaRef(MediaPropSaveData saveData)

@@ -9,7 +9,7 @@
   "dependencies": [
     {
       "manifest": "https://raw.githubusercontent.com/MidgetBrony/BR-MediaAPI/refs/heads/main/manifest.json",
-      "minimumVersion": "1.1.13",
+      "minimumVersion": "1.1.22",
       "required": true
     },
     {
